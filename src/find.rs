@@ -1,20 +1,24 @@
+use Configuration;
+
 use std;
 use walkdir::WalkDir;
 
 /// Recursively finds tests for the given paths.
-pub fn in_paths<'a,P>(paths: P) -> Result<Vec<String>,String>
+pub fn in_paths<'a,P>(paths: P,
+                      config: &Configuration) -> Result<Vec<String>,String>
     where P: IntoIterator<Item=&'a str> {
     let mut tests = Vec::new();
 
     for path in paths.into_iter() {
-        let path_tests = try!(in_path(path));
+        let path_tests = in_path(path, config)?;
         tests.extend(path_tests.into_iter());
     }
 
     Ok(tests)
 }
 
-pub fn in_path(path: &str)
+pub fn in_path(path: &str,
+               config: &Configuration)
     -> Result<Vec<String>,String> {
     let metadata = match std::fs::metadata(path) {
         Ok(meta) => meta,
@@ -23,15 +27,19 @@ pub fn in_path(path: &str)
     };
 
     if metadata.is_dir() {
-        find_tests_in_dir(path)
+        find_tests_in_dir(path, config)
     } else {
         Ok(vec![path.to_owned()])
     }
 }
 
-fn find_tests_in_dir(path: &str) -> Result<Vec<String>,String> {
+fn find_tests_in_dir(path: &str,
+                     config: &Configuration) -> Result<Vec<String>,String> {
     let tests = try!(find_files_in_dir(path)).into_iter()
-                     .filter(|f| f.ends_with(".ir"))
+                     .filter(|f| {
+                         let path = std::path::Path::new(f);
+                         path.extension().map(|ext| config.is_extension_supported(ext.to_str().unwrap())).unwrap_or(false)
+                     })
                      .collect();
     Ok(tests)
 }

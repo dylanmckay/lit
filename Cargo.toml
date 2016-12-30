@@ -7,4 +7,4 @@ authors = ["Dylan McKay <dylanmckay34@gmail.com>"]
 walkdir = "0.1"
 term = "*"
 regex = "0.1.71"
-
+argparse = "0.2"

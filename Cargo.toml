@@ -3,8 +3,16 @@ name = "lit"
 version = "0.1.0"
 authors = ["Dylan McKay <dylanmckay34@gmail.com>"]
 
+description = "Integrated testing tool"
+documentation = "https://docs.rs/lit"
+repository = "https://github.com/dylanmckay/lit"
+
+license = "MIT"
+
+keywords = ["testing"]
+
 [dependencies]
 walkdir = "0.1"
-term = "*"
+term = "0.4"
 regex = "0.1.71"
 argparse = "0.2"

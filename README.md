@@ -7,3 +7,4 @@
 An integrated testing tool, similar to LLVM's integrated testing tool (`llvm-lit`).
 
 [Documentation](https://docs.rs/lit)
+

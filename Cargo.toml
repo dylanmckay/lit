@@ -1,0 +1,10 @@
+[package]
+name = "lit"
+version = "0.1.0"
+authors = ["Dylan McKay <dylanmckay34@gmail.com>"]
+
+[dependencies]
+walkdir = "0.1"
+term = "*"
+regex = "0.1.71"
+

@@ -7,10 +7,10 @@ use {Context, print};
 
 pub fn tests<F>(config_fn: F)
     where F: Fn(&mut ::Configuration) {
-    let mut paths: Vec<String> = Vec::new();
-
     let mut configuration = ::Configuration::default();
     config_fn(&mut configuration);
+
+    let mut paths: Vec<String> = configuration.test_paths.iter().map(|p| p.display().to_string()).collect();
 
     {
         let mut ap = ArgumentParser::new();

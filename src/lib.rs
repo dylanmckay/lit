@@ -1,6 +1,5 @@
 pub use self::config::Config;
 
-use self::tool::*;
 use self::test::*;
 use self::instance::Instance;
 

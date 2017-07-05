@@ -1,0 +1,8 @@
+; RUN: cat @file
+
+; CHECK: hello [[name:\w+]]
+hello bob
+; CHECK-NEXT: [[name]]
+goodbye bob
+
+

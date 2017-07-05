@@ -1,7 +1,8 @@
+pub use self::config::Config;
+
 use self::tool::*;
 use self::test::*;
 use self::instance::Instance;
-pub use self::config::Configuration;
 
 mod tool;
 mod test;

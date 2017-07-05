@@ -3,11 +3,11 @@ use argparse;
 use argparse::ArgumentParser;
 use std::borrow::Borrow;
 
-use {Context, print};
+use {Context, Config, print};
 
 pub fn tests<F>(config_fn: F)
-    where F: Fn(&mut ::Configuration) {
-    let mut configuration = ::Configuration::default();
+    where F: Fn(&mut Config) {
+    let mut configuration = Config::default();
     config_fn(&mut configuration);
 
     let mut paths: Vec<String> = configuration.test_paths.iter().map(|p| p.display().to_string()).collect();

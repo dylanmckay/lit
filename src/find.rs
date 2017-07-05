@@ -1,11 +1,11 @@
-use Configuration;
+use Config;
 
 use std;
 use walkdir::WalkDir;
 
 /// Recursively finds tests for the given paths.
 pub fn in_paths<'a,P>(paths: P,
-                      config: &Configuration) -> Result<Vec<String>,String>
+                      config: &Config) -> Result<Vec<String>,String>
     where P: IntoIterator<Item=&'a str> {
     let mut tests = Vec::new();
 
@@ -18,7 +18,7 @@ pub fn in_paths<'a,P>(paths: P,
 }
 
 pub fn in_path(path: &str,
-               config: &Configuration)
+               config: &Config)
     -> Result<Vec<String>,String> {
     let metadata = match std::fs::metadata(path) {
         Ok(meta) => meta,
@@ -34,7 +34,7 @@ pub fn in_path(path: &str,
 }
 
 fn find_tests_in_dir(path: &str,
-                     config: &Configuration) -> Result<Vec<String>,String> {
+                     config: &Config) -> Result<Vec<String>,String> {
     let tests = try!(find_files_in_dir(path)).into_iter()
                      .filter(|f| {
                          let path = std::path::Path::new(f);

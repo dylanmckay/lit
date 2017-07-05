@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
-pub struct Configuration
+pub struct Config
 {
     /// A list of file extensions which contain tests.
     pub supported_file_extensions: Vec<String>,
@@ -9,7 +9,7 @@ pub struct Configuration
     pub test_paths: Vec<PathBuf>,
 }
 
-impl Configuration
+impl Config
 {
     pub fn add_extension<S>(&mut self, ext: S) where S: Into<String> {
         self.supported_file_extensions.push(ext.into())
@@ -24,10 +24,10 @@ impl Configuration
     }
 }
 
-impl Default for Configuration
+impl Default for Config
 {
     fn default() -> Self {
-        Configuration {
+        Config {
             supported_file_extensions: Vec::new(),
             test_paths: Vec::new(),
         }

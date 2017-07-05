@@ -88,7 +88,7 @@ impl Checker
     /// This will skip all directives.
     fn relevant_lines(&self) -> Vec<String> {
         self.stdout.lines().map(ToOwned::to_owned).filter(|line| {
-            if let Some(parsed_directive) = Directive::maybe_parse(line, 0) {
+            if Directive::maybe_parse(line, 0).is_some() {
                 // Filter out all lines containing directives, we don't want to
                 // match with ourselves.
                 false
@@ -106,7 +106,7 @@ impl Checker
                 Command::Check(ref regex) => {
                     let regex = self.resolve_variables(regex.clone());
 
-                    let mut relevant_lines = self.relevant_lines();
+                    let relevant_lines = self.relevant_lines();
                     let beginning_line = match relevant_lines.get(0) {
                         Some(l) => l.to_owned(),
                         None => return TestResultKind::fail(
@@ -146,7 +146,7 @@ impl Checker
                 Command::CheckNext(ref regex) => {
                     let regex = self.resolve_variables(regex.clone());
 
-                    let mut relevant_lines = self.relevant_lines();
+                    let relevant_lines = self.relevant_lines();
 
                     if let Some(next_line) = relevant_lines.get(0) {
                         if regex.is_match(&next_line) {

@@ -1,14 +1,14 @@
-pub use self::tool::*;
-pub use self::test::*;
-pub use self::instance::Instance;
+use self::tool::*;
+use self::test::*;
+use self::instance::Instance;
 pub use self::config::Configuration;
 
-pub mod tool;
-pub mod test;
-pub mod find;
-pub mod print;
-pub mod instance;
-pub mod config;
+mod tool;
+mod test;
+mod find;
+mod print;
+mod instance;
+mod config;
 
 pub mod run;
 

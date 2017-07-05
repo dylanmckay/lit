@@ -7,17 +7,17 @@ use std::borrow::Borrow;
 
 use {Context, Config, print};
 
-/// Runs all tests according to a given configuration.
+/// Runs all tests according to a given config.
 ///
 /// # Parameters
 ///
-/// * `config_fn` is a function which sets up the test configuration.
+/// * `config_fn` is a function which sets up the test config.
 pub fn tests<F>(config_fn: F)
     where F: Fn(&mut Config) {
-    let mut configuration = Config::default();
-    config_fn(&mut configuration);
+    let mut config = Config::default();
+    config_fn(&mut config);
 
-    let mut paths: Vec<String> = configuration.test_paths.iter().map(|p| p.display().to_string()).collect();
+    let mut paths: Vec<String> = config.test_paths.iter().map(|p| p.display().to_string()).collect();
 
     {
         let mut tmp = false;
@@ -41,7 +41,7 @@ pub fn tests<F>(config_fn: F)
     let paths = paths.iter()
                      .map(|s| s.borrow());
 
-    let test_paths = match ::find::in_paths(paths, &configuration) {
+    let test_paths = match ::find::in_paths(paths, &config) {
         Ok(paths) => paths,
         Err(e) => util::abort(format!("could not find files: {}", e)),
     };
@@ -52,11 +52,11 @@ pub fn tests<F>(config_fn: F)
     }
 
     let mut context = test_paths.into_iter().fold(Context::new(), |c,file| {
-        let test = util::parse_test(&file).unwrap();
+        let test = util::parse_test(&file, &config).unwrap();
         c.test(test)
     });
 
-    match util::tool_dir() {
+    match util::crate_dir() {
         Some(dir) => context.add_search_dir(dir),
         None => print::warning("could not find tool directory"),
     }
@@ -70,14 +70,14 @@ pub fn tests<F>(config_fn: F)
 
 mod util
 {
-    use Test;
+    use {Test, Config};
     use print;
 
     use std::error::Error;
     use std::io::Read;
     use std;
 
-    pub fn tool_dir() -> Option<String> {
+    pub fn crate_dir() -> Option<String> {
         let current_exec = match std::env::current_exe() {
             Ok(e) => e,
             Err(e) => abort(
@@ -87,10 +87,10 @@ mod util
         current_exec.parent().map(|p| p.to_str().unwrap().to_owned())
     }
 
-    pub fn parse_test(file_name: &str) -> Result<Test,String> {
+    pub fn parse_test(file_name: &str, config: &Config) -> Result<Test,String> {
         let mut text = String::new();
         open_file(file_name).read_to_string(&mut text).unwrap();
-        Test::parse(file_name, text.chars())
+        Test::parse(file_name, text.chars(), config)
     }
 
     fn open_file(path: &str) -> std::fs::File {

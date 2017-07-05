@@ -170,10 +170,6 @@ impl Lines {
         Lines { lines: lines, current: 0 }
     }
 
-    fn non_directive_line(line: &str) -> bool {
-        Directive::maybe_parse(line, 0).is_none()
-    }
-
     fn peek(&self) -> Option<<Self as Iterator>::Item> {
         self.next_index().map(|idx| self.lines[idx].clone())
     }
@@ -182,7 +178,7 @@ impl Lines {
         if self.current > self.lines.len() { return None; }
 
         self.lines[self.current..].iter()
-            .position(|l| {println!("checking '{}'", l); Lines::non_directive_line(l)})
+            .position(|l| !Directive::is_directive(l))
             .map(|offset| self.current + offset)
     }
 }

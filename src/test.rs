@@ -1,4 +1,4 @@
-use Instance;
+use {Instance, Config};
 
 use tool;
 use std;
@@ -80,7 +80,15 @@ impl Directive
         Regex::new(&string).unwrap()
     }
 
-    pub fn maybe_parse(string: &str, line: u32) -> Option<Result<Self,String>> {
+    pub fn is_directive(string: &str) -> bool {
+        // KEEP UP TO DATE WITH maybe_parse
+        // FIXME: make this a lazy static
+        let regex = Regex::new("([A-Z-]+):(.*)").unwrap();
+        regex.is_match(string)
+    }
+
+    pub fn maybe_parse(string: &str, line: u32, config: &Config) -> Option<Result<Self,String>> {
+        // KEEP UP TO DATE WITH maybe_parse
         let regex = Regex::new("([A-Z-]+):(.*)").unwrap();
 
         if !regex.is_match(string) { return None; }
@@ -93,7 +101,7 @@ impl Directive
             // FIXME: better message if we have 'RUN :'
             "RUN" => {
                 let inner_words = after_command_str.split_whitespace();
-                let invocation = match tool::Invocation::parse(inner_words) {
+                let invocation = match tool::Invocation::parse(inner_words, config) {
                     Ok(i) => i,
                     Err(e) => return Some(Err(e)),
                 };
@@ -117,7 +125,7 @@ impl Directive
 
 impl Test
 {
-    pub fn parse<S,I>(name: S, chars: I) -> Result<Self,String>
+    pub fn parse<S,I>(name: S, chars: I, config: &Config) -> Result<Self,String>
         where S: Into<String>, I: Iterator<Item=char> {
         let mut directives = Vec::new();
         let test_body: String = chars.collect();
@@ -125,7 +133,7 @@ impl Test
         for (line_idx, line) in test_body.lines().enumerate() {
             let line_number = line_idx + 1;
 
-            match Directive::maybe_parse(line, line_number as _) {
+            match Directive::maybe_parse(line, line_number as _, config) {
                 Some(Ok(directive)) => directives.push(directive),
                 Some(Err(e)) => {
                     return Err(format!(
@@ -277,11 +285,11 @@ impl Eq for Command { }
 
 #[cfg(test)]
 mod test {
-
     use super::*;
+    use Config;
 
     fn parse(line: &str) -> Result<Directive, String> {
-        Directive::maybe_parse(line, 0).unwrap()
+        Directive::maybe_parse(line, 0, &Config::default()).unwrap()
     }
 
     #[test]

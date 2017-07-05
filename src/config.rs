@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::collections::HashMap;
 
 /// The configuration of the test runner.
 #[derive(Clone, Debug)]
@@ -8,6 +9,8 @@ pub struct Config
     pub supported_file_extensions: Vec<String>,
     /// Paths to tests or folders containing tests.
     pub test_paths: Vec<PathBuf>,
+    /// Constants that tests can refer to via `@<name>` syntax.
+    pub constants: HashMap<String, String>,
 }
 
 impl Config
@@ -40,6 +43,7 @@ impl Default for Config
         Config {
             supported_file_extensions: Vec::new(),
             test_paths: Vec::new(),
+            constants: HashMap::new(),
         }
     }
 }

@@ -11,6 +11,18 @@ pub struct Instance
     pub invocation: tool::Invocation,
 }
 
+struct Checker
+{
+    lines: Lines,
+    variables: HashMap<String, String>,
+}
+
+/// Iterator over a set of lines.
+struct Lines {
+    lines: Vec<String>,
+    current: usize,
+}
+
 impl Instance
 {
     pub fn new(invocation: tool::Invocation) -> Self {
@@ -68,35 +80,13 @@ impl Instance
     }
 }
 
-struct Checker
-{
-    stdout: String,
-    variables: HashMap<String, String>,
-}
-
 impl Checker
 {
     fn new(stdout: String) -> Self {
         Checker {
-            stdout: stdout,
+            lines: stdout.into(),
             variables: HashMap::new(),
         }
-    }
-
-    /// Gets all lines that we should check given a regex.
-    ///
-    /// This will skip all directives.
-    fn relevant_lines(&self) -> Vec<String> {
-        self.stdout.lines().map(ToOwned::to_owned).filter(|line| {
-            if Directive::maybe_parse(line, 0).is_some() {
-                // Filter out all lines containing directives, we don't want to
-                // match with ourselves.
-                false
-            } else {
-                // Don't filter out anything else.
-                true
-            }
-        }).collect()
     }
 
     fn run(&mut self, test: &Test) -> TestResultKind {
@@ -106,30 +96,8 @@ impl Checker
                 Command::Check(ref regex) => {
                     let regex = self.resolve_variables(regex.clone());
 
-                    let relevant_lines = self.relevant_lines();
-                    let beginning_line = match relevant_lines.get(0) {
-                        Some(l) => l.to_owned(),
-                        None => return TestResultKind::fail(
-                            format_check_error(test, directive, "reached end of file", "")
-                        ),
-                    };
-
-                    let mut matched_line = None;
-                    // Eat all lines up until the current match.
-                    let remaining_lines: Vec<_> = relevant_lines.iter().cloned().skip_while(|line| {
-                        if regex.is_match(&line) {
-                            matched_line = Some(line.to_owned());
-                            false // stop processing lines
-                        } else {
-                            true
-                        }
-                    // If we found a match, the first item will be the matched line.
-                    // Skip it and get all remaining lines after it.
-                    }).skip(1).collect();
-
-                    println!("remaining lines: {:?}", remaining_lines);
-                    // Remove everything up to the current match if we found one.
-                    self.stdout = remaining_lines.join("\n");
+                    let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
+                    let matched_line = self.lines.find(|l| regex.is_match(l));
 
                     if let Some(matched_line) = matched_line {
                         self.process_captures(&regex, &matched_line);
@@ -138,21 +106,15 @@ impl Checker
                             format_check_error(test,
                                                directive,
                                                &format!("could not find match: '{}'", regex),
-                                               &beginning_line,
-                            )
+                                               &beginning_line)
                         );
                     }
                 },
                 Command::CheckNext(ref regex) => {
                     let regex = self.resolve_variables(regex.clone());
 
-                    let relevant_lines = self.relevant_lines();
-
-                    if let Some(next_line) = relevant_lines.get(0) {
+                    if let Some(next_line) = self.lines.next() {
                         if regex.is_match(&next_line) {
-                            let lines: Vec<_> = relevant_lines.iter().skip(1).map(|l| l.to_owned()).collect();
-                            self.stdout = lines.join("\n");
-
                             self.process_captures(&regex, &next_line);
                         } else {
                             return TestResultKind::fail(
@@ -203,6 +165,49 @@ impl Checker
     }
 }
 
+impl Lines {
+    pub fn new(lines: Vec<String>) -> Self {
+        Lines { lines: lines, current: 0 }
+    }
+
+    fn non_directive_line(line: &str) -> bool {
+        Directive::maybe_parse(line, 0).is_none()
+    }
+
+    fn peek(&self) -> Option<<Self as Iterator>::Item> {
+        self.next_index().map(|idx| self.lines[idx].clone())
+    }
+
+    fn next_index(&self) -> Option<usize> {
+        if self.current > self.lines.len() { return None; }
+
+        self.lines[self.current..].iter()
+            .position(|l| {println!("checking '{}'", l); Lines::non_directive_line(l)})
+            .map(|offset| self.current + offset)
+    }
+}
+
+impl Iterator for Lines
+{
+    type Item = String;
+
+    fn next(&mut self) -> Option<String> {
+        if let Some(next_index) = self.next_index() {
+            self.current = next_index + 1;
+            Some(self.lines[next_index].clone())
+        } else {
+            None
+        }
+    }
+}
+
+impl From<String> for Lines
+{
+    fn from(s: String) -> Lines {
+        Lines::new(s.split("\n").map(ToOwned::to_owned).collect())
+    }
+}
+
 fn format_check_error(test: &Test,
                       directive: &Directive,
                       msg: &str,
@@ -215,5 +220,36 @@ fn format_error(test: &Test,
                 msg: &str,
                 next_line: &str) -> String {
     format!("{}:{}: {}\nnext line: '{}'", test.path, directive.line, msg, next_line)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn lines(s: &str) -> Vec<String> {
+        let lines: Lines = s.to_owned().into();
+        lines.collect()
+    }
+
+    #[test]
+    fn trivial_lines_works_correctly() {
+        assert_eq!(lines("hello\nworld\nfoo"), &["hello", "world", "foo"]);
+    }
+
+    #[test]
+    fn lines_ignores_directives() {
+        assert_eq!(lines("; RUN: cat %file\nhello\n; CHECK: foo\nfoo"),
+                   &["hello", "foo"]);
+    }
+
+    #[test]
+    fn lines_can_peek() {
+        let mut lines: Lines = "hello\nworld\nfoo".to_owned().into();
+        assert_eq!(lines.next(), Some("hello".to_owned()));
+        assert_eq!(lines.peek(), Some("world".to_owned()));
+        assert_eq!(lines.next(), Some("world".to_owned()));
+        assert_eq!(lines.peek(), Some("foo".to_owned()));
+        assert_eq!(lines.next(), Some("foo".to_owned()));
+    }
 }
 

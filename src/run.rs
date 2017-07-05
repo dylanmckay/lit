@@ -20,12 +20,17 @@ pub fn tests<F>(config_fn: F)
     let mut paths: Vec<String> = configuration.test_paths.iter().map(|p| p.display().to_string()).collect();
 
     {
+        let mut tmp = false;
         let mut ap = ArgumentParser::new();
         ap.set_description("Runs tests");
 
         ap.refer(&mut paths)
             .add_argument("paths", argparse::List,
                           r#"Paths to test"#);
+        // Required in order to use 'cargo test --nocapture'.
+        ap.refer(&mut tmp)
+            .add_option(&["--nocapture"], argparse::StoreTrue,
+            "ignore this");
         ap.parse_args_or_exit();
     }
 

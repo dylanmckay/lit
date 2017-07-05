@@ -5,19 +5,54 @@ use std;
 
 use regex::{Regex, Captures};
 
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Clone,Debug)]
 pub struct Directive
 {
     pub command: Command,
     pub line: u32,
 }
 
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Clone,Debug)]
 pub enum Command
 {
     Run(tool::Invocation),
     Check(Regex),
     CheckNext(Regex),
+}
+
+#[derive(Clone,Debug)]
+pub struct Test
+{
+    pub path: String,
+    pub directives: Vec<Directive>,
+}
+
+#[derive(Clone,Debug)]
+pub enum TestResultKind
+{
+    Pass,
+    Fail(String, String),
+    Skip,
+}
+
+#[derive(Clone,Debug)]
+pub struct TestResult
+{
+    pub path: String,
+    pub kind: TestResultKind,
+}
+
+#[derive(Clone,Debug)]
+pub struct Context
+{
+    pub exec_search_dirs: Vec<String>,
+    pub tests: Vec<Test>,
+}
+
+#[derive(Clone,Debug)]
+pub struct Results
+{
+    test_results: Vec<TestResult>,
 }
 
 impl Directive
@@ -38,8 +73,8 @@ impl Directive
 
         if capture_regex.is_match(&string) {
             string = capture_regex.replace_all(&string, |caps: &Captures| {
-                format!("(?P<{}>{})", caps.at(1).unwrap(), caps.at(2).unwrap())
-            });
+                format!("(?P<{}>{})", caps.get(1).unwrap().as_str(), caps.get(2).unwrap().as_str())
+            }).into_owned();
         }
 
         Regex::new(&string).unwrap()
@@ -51,8 +86,8 @@ impl Directive
         if !regex.is_match(string) { return None; }
 
         let captures = regex.captures(string).unwrap();
-        let command_str = captures.at(1).unwrap().trim();
-        let after_command_str = captures.at(2).unwrap().trim();
+        let command_str = captures.get(1).unwrap().as_str().trim();
+        let after_command_str = captures.get(2).unwrap().as_str().trim();
 
         match command_str {
             // FIXME: better message if we have 'RUN :'
@@ -78,13 +113,6 @@ impl Directive
             },
         }
     }
-}
-
-#[derive(Clone,Debug,PartialEq,Eq)]
-pub struct Test
-{
-    pub path: String,
-    pub directives: Vec<Directive>,
 }
 
 impl Test
@@ -163,33 +191,11 @@ impl Test
     }
 }
 
-#[derive(Clone,Debug,PartialEq,Eq)]
-pub enum TestResultKind
-{
-    Pass,
-    Fail(String, String),
-    Skip,
-}
-
 impl TestResultKind
 {
     pub fn fail<S: Into<String>>(s: S) -> Self {
         TestResultKind::Fail(s.into(), "".to_owned())
     }
-}
-
-#[derive(Clone,Debug,PartialEq,Eq)]
-pub struct TestResult
-{
-    pub path: String,
-    pub kind: TestResultKind,
-}
-
-#[derive(Clone,Debug,PartialEq,Eq)]
-pub struct Context
-{
-    pub exec_search_dirs: Vec<String>,
-    pub tests: Vec<Test>,
 }
 
 impl Context
@@ -243,13 +249,6 @@ impl Context
             None => path.to_owned(),
         }
     }
-}
-
-
-#[derive(Clone,Debug,PartialEq,Eq)]
-pub struct Results
-{
-    test_results: Vec<TestResult>,
 }
 
 impl Results

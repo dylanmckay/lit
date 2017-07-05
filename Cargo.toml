@@ -12,7 +12,7 @@ license = "MIT"
 keywords = ["testing"]
 
 [dependencies]
-walkdir = "0.1"
+walkdir = "1.0"
 term = "0.4"
-regex = "0.1.71"
+regex = "0.2"
 argparse = "0.2"

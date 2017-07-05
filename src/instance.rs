@@ -161,7 +161,7 @@ impl Checker
             if let Some(name) = capture_name {
                 let captured_value = captures.name(name).unwrap();
 
-                self.variables.insert(name.to_owned(), captured_value.to_owned());
+                self.variables.insert(name.to_owned(), captured_value.as_str().to_owned());
             }
         }
     }

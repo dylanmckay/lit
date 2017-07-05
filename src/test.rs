@@ -150,7 +150,7 @@ impl Test
         })
     }
 
-    pub fn run(&self, context: &Context) -> TestResult {
+    pub fn run(&self, context: &Context, config: &Config) -> TestResult {
         if self.is_empty() {
             return TestResult {
                 path: self.path.clone(),
@@ -159,7 +159,7 @@ impl Test
         }
 
         for instance in self.instances() {
-            let kind = instance.run(self, context);
+            let kind = instance.run(self, context, config);
 
             match kind {
                 TestResultKind::Pass => continue,
@@ -220,9 +220,9 @@ impl Context
         self
     }
 
-    pub fn run(&self) -> Results {
+    pub fn run(&self, config: &Config) -> Results {
         let test_results = self.tests.iter().map(|test| {
-            test.run(self)
+            test.run(self, config)
         }).collect();
 
         Results {
@@ -251,7 +251,13 @@ impl Context
         None
     }
 
-    pub fn executable_path(&self, path: &str) -> String {
+    pub fn executable_path(&self, path: &str, config: &Config) -> String {
+        // Check if executable is a variable.
+        if path.starts_with("@") {
+            let value = config.constants.get(&path[1..]).expect("no constant with that name found");
+            return value.to_owned();
+        }
+
         match self.find_in_search_dir(path) {
             Some(p) => p,
             None => path.to_owned(),

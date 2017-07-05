@@ -61,7 +61,7 @@ pub fn tests<F>(config_fn: F)
         None => print::warning("could not find tool directory"),
     }
 
-    let results = context.run();
+    let results = context.run(&config);
 
     for result in results.iter() {
         print::result(result)

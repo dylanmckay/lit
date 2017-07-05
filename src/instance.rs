@@ -1,4 +1,4 @@
-use {Context, Test, Directive, Command, TestResultKind};
+use {Context, Config, Test, Directive, Command, TestResultKind};
 use std::process;
 use std::collections::HashMap;
 use regex::Regex;
@@ -29,9 +29,9 @@ impl Instance
         Instance { invocation: invocation }
     }
 
-    pub fn run(self, test: &Test, context: &Context) -> TestResultKind {
-        let exe_path = context.executable_path(&self.invocation.executable);
-        let mut cmd = self.build_command(test, context);
+    pub fn run(self, test: &Test, context: &Context, config: &Config) -> TestResultKind {
+        let exe_path = context.executable_path(&self.invocation.executable, config);
+        let mut cmd = self.build_command(test, context, config);
 
         let output = match cmd.output() {
             Ok(o) => o,
@@ -67,8 +67,8 @@ impl Instance
         Checker::new(stdout).run(&test)
     }
 
-    pub fn build_command(&self, test: &Test, context: &Context) -> process::Command {
-        let exe_path = context.executable_path(&self.invocation.executable);
+    pub fn build_command(&self, test: &Test, context: &Context, config: &Config) -> process::Command {
+        let exe_path = context.executable_path(&self.invocation.executable, config);
         let mut cmd = process::Command::new(&exe_path);
 
         for arg in self.invocation.arguments.iter() {

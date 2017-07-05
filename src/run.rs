@@ -1,3 +1,5 @@
+//! Routines for running tests.
+
 use argparse;
 
 use argparse::ArgumentParser;
@@ -5,6 +7,11 @@ use std::borrow::Borrow;
 
 use {Context, Config, print};
 
+/// Runs all tests according to a given configuration.
+///
+/// # Parameters
+///
+/// * `config_fn` is a function which sets up the test configuration.
 pub fn tests<F>(config_fn: F)
     where F: Fn(&mut Config) {
     let mut configuration = Config::default();

@@ -1,0 +1,5 @@
+; RUN: cat @file
+
+; CHECK: ldi r[[\d+]], [[\d+]]
+ldi r2, 1
+

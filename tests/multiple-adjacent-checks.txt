@@ -1,0 +1,13 @@
+; RUN: cat @file
+
+; CHECK: hello world
+hello world
+; CHECK: this is me
+this is me
+
+; CHECK: life should be
+life should be
+; CHECK: fun for everyone
+fun for everyone
+
+

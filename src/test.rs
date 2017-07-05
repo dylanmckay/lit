@@ -5,7 +5,7 @@ use std;
 
 use regex::{Regex, Captures};
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub struct Directive
 {
     pub command: Command,
@@ -20,14 +20,14 @@ pub enum Command
     CheckNext(Regex),
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub struct Test
 {
     pub path: String,
     pub directives: Vec<Directive>,
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub enum TestResultKind
 {
     Pass,
@@ -35,21 +35,21 @@ pub enum TestResultKind
     Skip,
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub struct TestResult
 {
     pub path: String,
     pub kind: TestResultKind,
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub struct Context
 {
     pub exec_search_dirs: Vec<String>,
     pub tests: Vec<Test>,
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,PartialEq,Eq)]
 pub struct Results
 {
     test_results: Vec<TestResult>,
@@ -259,5 +259,33 @@ impl Results
 
     pub fn iter(&self) -> ::std::slice::Iter<TestResult> {
         self.test_results()
+    }
+}
+
+impl PartialEq for Command {
+    fn eq(&self, other: &Command) -> bool {
+        match *self {
+            Command::Run(ref a) => if let Command::Run(ref b) = *other { a == b } else { false },
+            Command::Check(ref a) => if let Command::Check(ref b) = *other { a.to_string() == b.to_string() } else { false },
+            Command::CheckNext(ref a) => if let Command::CheckNext(ref b) = *other { a.to_string() == b.to_string() } else { false },
+
+        }
+    }
+}
+
+impl Eq for Command { }
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    fn parse(line: &str) -> Result<Directive, String> {
+        Directive::maybe_parse(line, 0).unwrap()
+    }
+
+    #[test]
+    fn can_parse_run() {
+        let _d = parse("; RUN: foo").unwrap();
     }
 }

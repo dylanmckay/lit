@@ -1,0 +1,10 @@
+; RUN: cat @file
+
+but this text here is good
+
+; CHECK: hello there
+hello there
+
+; CHECK: but this text here is good
+but this text here is good
+

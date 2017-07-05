@@ -1,0 +1,12 @@
+; RUN: cat @file
+
+; CHECK: hello there
+hello there
+
+there is junk in between the lines
+
+right over here
+
+; CHECK: but this text here is good
+but this text here is good
+

@@ -1,0 +1,8 @@
+; RUN: cat @file
+
+; CHECK: hello
+hello
+; CHECK-NEXT: world
+world
+
+

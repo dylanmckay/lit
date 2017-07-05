@@ -83,6 +83,22 @@ impl Checker
         }
     }
 
+    /// Gets all lines that we should check given a regex.
+    ///
+    /// This will skip all directives.
+    fn relevant_lines(&self) -> Vec<String> {
+        self.stdout.lines().map(ToOwned::to_owned).filter(|line| {
+            if let Some(parsed_directive) = Directive::maybe_parse(line, 0) {
+                // Filter out all lines containing directives, we don't want to
+                // match with ourselves.
+                false
+            } else {
+                // Don't filter out anything else.
+                true
+            }
+        }).collect()
+    }
+
     fn run(&mut self, test: &Test) -> TestResultKind {
         for directive in test.directives.iter() {
             match directive.command {
@@ -90,7 +106,8 @@ impl Checker
                 Command::Check(ref regex) => {
                     let regex = self.resolve_variables(regex.clone());
 
-                    let beginning_line = match self.stdout.lines().next() {
+                    let mut relevant_lines = self.relevant_lines();
+                    let beginning_line = match relevant_lines.get(0) {
                         Some(l) => l.to_owned(),
                         None => return TestResultKind::fail(
                             format_check_error(test, directive, "reached end of file", "")
@@ -98,15 +115,21 @@ impl Checker
                     };
 
                     let mut matched_line = None;
-                    let tmp: Vec<_> = self.stdout.lines().map(|l| l.to_owned()).skip_while(|line| {
+                    // Eat all lines up until the current match.
+                    let remaining_lines: Vec<_> = relevant_lines.iter().cloned().skip_while(|line| {
                         if regex.is_match(&line) {
                             matched_line = Some(line.to_owned());
                             false // stop processing lines
                         } else {
                             true
                         }
+                    // If we found a match, the first item will be the matched line.
+                    // Skip it and get all remaining lines after it.
                     }).skip(1).collect();
-                    self.stdout = tmp.join("\n");
+
+                    println!("remaining lines: {:?}", remaining_lines);
+                    // Remove everything up to the current match if we found one.
+                    self.stdout = remaining_lines.join("\n");
 
                     if let Some(matched_line) = matched_line {
                         self.process_captures(&regex, &matched_line);
@@ -123,9 +146,11 @@ impl Checker
                 Command::CheckNext(ref regex) => {
                     let regex = self.resolve_variables(regex.clone());
 
-                    if let Some(ref next_line) = self.stdout.lines().next().map(|l| l.to_owned()) {
+                    let mut relevant_lines = self.relevant_lines();
+
+                    if let Some(next_line) = relevant_lines.get(0) {
                         if regex.is_match(&next_line) {
-                            let lines: Vec<_> = self.stdout.lines().skip(1).map(|l| l.to_owned()).collect();
+                            let lines: Vec<_> = relevant_lines.iter().skip(1).map(|l| l.to_owned()).collect();
                             self.stdout = lines.join("\n");
 
                             self.process_captures(&regex, &next_line);

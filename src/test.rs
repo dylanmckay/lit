@@ -5,6 +5,10 @@ use std;
 
 use regex::{Regex, Captures};
 
+lazy_static! {
+    static ref DIRECTIVE_REGEX: Regex = Regex::new("([A-Z-]+):(.*)").unwrap();
+}
+
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct Directive
 {
@@ -80,20 +84,16 @@ impl Directive
         Regex::new(&string).unwrap()
     }
 
+    /// Checks if a strint is a directive.
     pub fn is_directive(string: &str) -> bool {
         // KEEP UP TO DATE WITH maybe_parse
-        // FIXME: make this a lazy static
-        let regex = Regex::new("([A-Z-]+):(.*)").unwrap();
-        regex.is_match(string)
+        DIRECTIVE_REGEX.is_match(string)
     }
 
     pub fn maybe_parse(string: &str, line: u32, config: &Config) -> Option<Result<Self,String>> {
-        // KEEP UP TO DATE WITH maybe_parse
-        let regex = Regex::new("([A-Z-]+):(.*)").unwrap();
+        if !DIRECTIVE_REGEX.is_match(string) { return None; }
 
-        if !regex.is_match(string) { return None; }
-
-        let captures = regex.captures(string).unwrap();
+        let captures = DIRECTIVE_REGEX.captures(string).unwrap();
         let command_str = captures.get(1).unwrap().as_str().trim();
         let after_command_str = captures.get(2).unwrap().as_str().trim();
 

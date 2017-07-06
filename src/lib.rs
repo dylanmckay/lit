@@ -19,3 +19,5 @@ extern crate walkdir;
 extern crate term;
 extern crate regex;
 extern crate argparse;
+#[macro_use]
+extern crate lazy_static;

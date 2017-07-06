@@ -6,13 +6,16 @@ use argparse::ArgumentParser;
 use std::borrow::Borrow;
 
 use {Context, Config, print};
+use test::TestResultKind;
 
 /// Runs all tests according to a given config.
+///
+/// Return `Ok` if all tests pass, and `Err` otherwise.
 ///
 /// # Parameters
 ///
 /// * `config_fn` is a function which sets up the test config.
-pub fn tests<F>(config_fn: F)
+pub fn tests<F>(config_fn: F) -> Result<(), ()>
     where F: Fn(&mut Config) {
     let mut config = Config::default();
     config_fn(&mut config);
@@ -48,7 +51,7 @@ pub fn tests<F>(config_fn: F)
 
     if test_paths.is_empty() {
         print::warning("could not find any tests");
-        return;
+        return Err(());
     }
 
     let mut context = test_paths.into_iter().fold(Context::new(), |c,file| {
@@ -66,6 +69,11 @@ pub fn tests<F>(config_fn: F)
     for result in results.iter() {
         print::result(result)
     }
+
+    let has_failure = results.iter().any(|r| {
+        if let TestResultKind::Fail(..) = r.kind { true } else { false }
+    });
+    if !has_failure { Ok(()) } else { Err(()) }
 }
 
 mod util

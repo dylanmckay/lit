@@ -7,7 +7,7 @@ fn main() {
         config.add_search_path("test/");
         config.add_extension("cpp");
 
-        config.constants.insert("arch", consts::ARCH);
-        config.constants.insert("os", consts::OS);
-    })
+        config.constants.insert("arch".to_owned(), consts::ARCH.to_owned());
+        config.constants.insert("os".to_owned(), consts::OS.to_owned());
+    }).unwrap()
 }

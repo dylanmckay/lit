@@ -7,5 +7,5 @@ fn thing() {
     run::tests(|config| {
         config.add_search_path(format!("{}/tests", CRATE_PATH));
         config.add_extension("txt");
-    })
+    }).unwrap();
 }

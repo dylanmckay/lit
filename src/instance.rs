@@ -1,10 +1,12 @@
-use {Context, Config, Test, Directive, Command, TestResultKind};
+use {Config, Test, Directive, Command, TestResultKind};
 use std::process;
 use std::collections::HashMap;
 use regex::Regex;
 
 use tool;
 use std;
+
+const SHELL: &'static str = "bash";
 
 pub struct Instance
 {
@@ -29,22 +31,19 @@ impl Instance
         Instance { invocation: invocation }
     }
 
-    pub fn run(self, test: &Test, context: &Context, config: &Config) -> TestResultKind {
-        let exe_path = context.executable_path(&self.invocation.executable, config);
-        let mut cmd = self.build_command(test, context, config);
+    pub fn run(self, test: &Test, config: &Config) -> TestResultKind {
+        let mut cmd = self.build_command(test, config);
 
         let output = match cmd.output() {
             Ok(o) => o,
             Err(e) => match e.kind() {
                 std::io::ErrorKind::NotFound => {
                     return TestResultKind::Fail(
-                        format!("executable not found: {}",
-                                exe_path), "".to_owned());
+                        format!("shell '{}' does not exist", SHELL), "".to_owned());
                 },
                 _ => {
                     return TestResultKind::Fail(
-                        format!("could not execute: '{}', {}",
-                                exe_path, e), "".to_owned());
+                        format!("could not execute command: {}", e), "".to_owned());
                 },
             },
         };
@@ -53,8 +52,7 @@ impl Instance
             let stderr = String::from_utf8(output.stderr).unwrap();
 
             return TestResultKind::Fail(format!(
-                "{} exited with code {}", exe_path,
-                output.status.code().unwrap()),
+                "exited with code {}", output.status.code().unwrap()),
                 stderr
             );
         }
@@ -67,14 +65,16 @@ impl Instance
         Checker::new(stdout).run(&test)
     }
 
-    pub fn build_command(&self, test: &Test, context: &Context, config: &Config) -> process::Command {
-        let exe_path = context.executable_path(&self.invocation.executable, config);
-        let mut cmd = process::Command::new(&exe_path);
+    pub fn build_command(&self,
+                         test: &Test,
+                         config: &Config) -> process::Command {
+        let mut constants = config.constants.clone();
+        constants.extend(test.extra_constants());
 
-        for arg in self.invocation.arguments.iter() {
-            let arg_str = arg.resolve(test);
-            cmd.arg(arg_str);
-        }
+        let command_line = self.invocation.resolve(&constants);
+
+        let mut cmd = process::Command::new("bash");
+        cmd.args(&["-c", &command_line]);
 
         cmd
     }

@@ -55,7 +55,7 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
     }
 
     let mut context = test_paths.into_iter().fold(Context::new(), |c,file| {
-        let test = util::parse_test(&file, &config).unwrap();
+        let test = util::parse_test(&file).unwrap();
         c.test(test)
     });
 
@@ -78,7 +78,7 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
 
 mod util
 {
-    use {Test, Config};
+    use Test;
     use print;
 
     use std::error::Error;
@@ -95,10 +95,10 @@ mod util
         current_exec.parent().map(|p| p.to_str().unwrap().to_owned())
     }
 
-    pub fn parse_test(file_name: &str, config: &Config) -> Result<Test,String> {
+    pub fn parse_test(file_name: &str) -> Result<Test,String> {
         let mut text = String::new();
         open_file(file_name).read_to_string(&mut text).unwrap();
-        Test::parse(file_name, text.chars(), config)
+        Test::parse(file_name, text.chars())
     }
 
     fn open_file(path: &str) -> std::fs::File {

@@ -15,20 +15,29 @@ pub fn result(result: &TestResult) {
                      result.path.display()));
             line();
         },
-        TestResultKind::Fail(ref msg, ref desc) => {
+        TestResultKind::Error(ref e) => {
+            line();
+
+            error(format!("ERROR :: {}", result.path.display()));
+            text(e.to_string());
+
+            line();
+        }
+        TestResultKind::Fail { ref message, ref stderr } => {
             line();
 
             failure(format!("FAIL :: {}", result.path.display()));
-            text(msg.clone());
+            text(message.clone());
 
-            // Only print stderr if there was output
-            if !desc.is_empty() {
-                line();
-                text("stderr:");
-                line();
-                text(desc.clone());
+            if let Some(stderr) = stderr.as_ref() {
+                // Only print stderr if there was output
+                if !stderr.is_empty() {
+                    line();
+                    text("stderr:");
+                    line();
+                    text(stderr.clone());
+                }
             }
-
             line();
         },
     }
@@ -62,11 +71,18 @@ pub fn warning<S>(msg: S)
          term::color::YELLOW);
 }
 
-pub fn failure<S>(msg: S)
+pub fn error<S>(msg: S)
     where S: Into<String> {
     with(format!("{}\n", msg.into()),
          term::stderr().unwrap(),
          term::color::RED);
+}
+
+pub fn failure<S>(msg: S)
+    where S: Into<String> {
+    with(format!("{}\n", msg.into()),
+         term::stderr().unwrap(),
+         term::color::MAGENTA);
 }
 
 pub fn with<S,W>(msg: S,

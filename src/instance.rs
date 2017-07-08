@@ -38,23 +38,22 @@ impl Instance
             Ok(o) => o,
             Err(e) => match e.kind() {
                 std::io::ErrorKind::NotFound => {
-                    return TestResultKind::Fail(
-                        format!("shell '{}' does not exist", SHELL), "".to_owned());
+                    return TestResultKind::Error(
+                        format!("shell '{}' does not exist", SHELL).into(),
+                    );
                 },
-                _ => {
-                    return TestResultKind::Fail(
-                        format!("could not execute command: {}", e), "".to_owned());
-                },
+                _ => return TestResultKind::Error(e.into()),
             },
         };
 
         if !output.status.success() {
             let stderr = String::from_utf8(output.stderr).unwrap();
 
-            return TestResultKind::Fail(format!(
-                "exited with code {}", output.status.code().unwrap()),
-                stderr
-            );
+            return TestResultKind::Fail {
+                message: format!(
+                    "exited with code {}", output.status.code().unwrap()),
+                stderr: Some(stderr),
+            };
         }
 
         let stdout = String::from_utf8(output.stdout).unwrap();
@@ -110,12 +109,11 @@ impl Checker
                     if let Some(matched_line) = matched_line {
                         self.process_captures(&regex, &matched_line);
                     } else {
-                        return TestResultKind::fail(
-                            format_check_error(test,
-                                               directive,
-                                               &format!("could not find match: '{}'", matcher),
-                                               &beginning_line)
-                        );
+                        let message = format_check_error(test,
+                            directive,
+                            &format!("could not find match: '{}'", matcher),
+                            &beginning_line);
+                        return TestResultKind::Fail { message, stderr: None };
                     }
                 },
                 Command::CheckNext(ref matcher) => {
@@ -125,15 +123,18 @@ impl Checker
                         if regex.is_match(&next_line) {
                             self.process_captures(&regex, &next_line);
                         } else {
-                            return TestResultKind::fail(
-                                format_check_error(test,
-                                                   directive,
-                                                   &format!("could not find match: '{}'", matcher),
-                                                   &next_line)
-                                );
+                            let message = format_check_error(test,
+                                directive,
+                                &format!("could not find match: '{}'", matcher),
+                                &next_line);
+
+                            return TestResultKind::Fail { message, stderr: None };
                         }
                     } else {
-                        return TestResultKind::fail(format!("check-next reached the end of file"));
+                        return TestResultKind::Fail {
+                            message: format!("check-next reached the end of file"),
+                            stderr: None,
+                        };
                     }
                 },
             }

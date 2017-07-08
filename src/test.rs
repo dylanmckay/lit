@@ -1,4 +1,4 @@
-use {Instance, Config};
+use {Instance, Config, Error};
 
 use tool;
 
@@ -33,15 +33,19 @@ pub enum Command
     CheckNext(Matcher),
 }
 
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Debug)]
 pub enum TestResultKind
 {
     Pass,
-    Fail(String, String),
+    Error(Error),
+    Fail {
+        message: String,
+        stderr: Option<String>,
+    },
     Skip,
 }
 
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Debug)]
 pub struct TestResult
 {
     pub path: PathBuf,
@@ -55,7 +59,7 @@ pub struct Context
     pub tests: Vec<Test>,
 }
 
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Debug)]
 pub struct Results
 {
     test_results: Vec<TestResult>,
@@ -109,10 +113,10 @@ impl Test
                         kind: TestResultKind::Pass,
                     }
                 },
-                TestResultKind::Fail(msg, desc) => {
+                _ => {
                     return TestResult {
                         path: self.path.clone(),
-                        kind: TestResultKind::Fail(msg, desc),
+                        kind,
                     }
                 },
             }
@@ -190,13 +194,6 @@ impl Directive
                 Some(Err(format!("command '{}' not known", command_str)))
             },
         }
-    }
-}
-
-impl TestResultKind
-{
-    pub fn fail<S: Into<String>>(s: S) -> Self {
-        TestResultKind::Fail(s.into(), "".to_owned())
     }
 }
 

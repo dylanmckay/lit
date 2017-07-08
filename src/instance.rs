@@ -100,7 +100,6 @@ impl Checker
             match directive.command {
                 Command::Run(..) => (),
                 Command::Check(ref matcher) => {
-                    println!("CHECKING: {:?}", matcher);
                     let regex = matcher.resolve(&self.variables);
 
                     let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
@@ -111,7 +110,7 @@ impl Checker
                     } else {
                         let message = format_check_error(test,
                             directive,
-                            &format!("could not find match: '{}'", matcher),
+                            &format!("could not find match: '{:?}'", matcher),
                             &beginning_line);
                         return TestResultKind::Fail { message, stderr: None };
                     }
@@ -125,7 +124,7 @@ impl Checker
                         } else {
                             let message = format_check_error(test,
                                 directive,
-                                &format!("could not find match: '{}'", matcher),
+                                &format!("could not find match: '{:?}'", matcher),
                                 &next_line);
 
                             return TestResultKind::Fail { message, stderr: None };

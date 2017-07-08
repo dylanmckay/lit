@@ -38,6 +38,7 @@ impl Matcher {
             match (chars.next(), chars.peek().cloned()) {
                 // Variable.
                 (Some('$'), Some('$')) => {
+                    complete_text(&mut current_text, &mut components);
                     chars.next(); // Eat second '$'.
 
                     let name: String = chars.clone()
@@ -114,6 +115,7 @@ impl Matcher {
             Component::Variable(ref name) => {
                 // FIXME: proper error handling.
                 let value = variables.get(name).expect("no variable with that name");
+                println!("RESOLV: {:?}", value);
                 value.clone()
             },
             Component::Regex(ref regex) => regex.clone(),
@@ -138,3 +140,69 @@ impl fmt::Display for Matcher {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::collections::HashMap;
+
+    lazy_static! {
+        static ref VARIABLES: HashMap<String, String> = {
+            let mut v = HashMap::new();
+            v.insert("po".to_owned(), "polonium".to_owned());
+            v.insert("name".to_owned(), "bob".to_owned());
+            v
+        };
+    }
+
+    fn matcher(s: &str) -> String {
+        Matcher::parse(s).resolve(&VARIABLES).as_str().to_owned()
+    }
+
+    #[test]
+    fn parses_single_text() {
+        assert_eq!(matcher("hello world"),
+                   "hello world");
+    }
+
+    #[test]
+    fn correctly_escapes_text() {
+        assert_eq!(matcher("hello()").as_str(),
+                   "hello\\(\\)");
+    }
+
+    #[test]
+    fn correctly_picks_up_single_regex() {
+        assert_eq!(matcher("[[\\d]]").as_str(),
+                   "\\d");
+    }
+
+    #[test]
+    fn correctly_picks_up_regex_between_text() {
+        assert_eq!(matcher("1[[\\d]]3").as_str(),
+                   "1\\d3");
+    }
+
+    #[test]
+    fn correctly_picks_up_named_regex() {
+        assert_eq!(matcher("[[num:\\d]]").as_str(),
+                   "(?P<num>\\d)");
+    }
+
+    #[test]
+    fn correctly_picks_up_single_variable() {
+        assert_eq!(matcher("$$po").as_str(),
+                   "polonium");
+    }
+
+    #[test]
+    fn correctly_picks_up_variable_between_junk() {
+        assert_eq!(matcher("[[[a-z]]]$$po foo").as_str(),
+                   "[a-z]polonium foo");
+    }
+
+    #[test]
+    fn correctly_picks_up_variable_at_end() {
+        assert_eq!(matcher("goodbye $$name").as_str(),
+                   "goodbye bob");
+    }
+}

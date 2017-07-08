@@ -1,6 +1,6 @@
 use {Config, Test, Directive, Command, TestResultKind};
-use std::process;
 use std::collections::HashMap;
+use std::{env, process};
 use regex::Regex;
 
 use tool;
@@ -75,6 +75,13 @@ impl Instance
 
         let mut cmd = process::Command::new("bash");
         cmd.args(&["-c", &command_line]);
+
+        if let Ok(current_exe) = env::current_exe() {
+            if let Some(parent) = current_exe.parent() {
+                let current_path = env::var("PATH").unwrap_or(String::new());
+                cmd.env("PATH", format!("{}:{}", parent.to_str().unwrap(), current_path));
+            }
+        }
 
         cmd
     }

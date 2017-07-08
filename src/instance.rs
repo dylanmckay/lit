@@ -100,8 +100,9 @@ impl Checker
         for directive in test.directives.iter() {
             match directive.command {
                 Command::Run(..) => (),
-                Command::Check(ref regex) => {
-                    let regex = self.resolve_variables(regex.clone());
+                Command::Check(ref matcher) => {
+                    println!("CHECKING: {:?}", matcher);
+                    let regex = matcher.resolve(&self.variables);
 
                     let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
                     let matched_line = self.lines.find(|l| regex.is_match(l));
@@ -112,13 +113,13 @@ impl Checker
                         return TestResultKind::fail(
                             format_check_error(test,
                                                directive,
-                                               &format!("could not find match: '{}'", regex),
+                                               &format!("could not find match: '{}'", matcher),
                                                &beginning_line)
                         );
                     }
                 },
-                Command::CheckNext(ref regex) => {
-                    let regex = self.resolve_variables(regex.clone());
+                Command::CheckNext(ref matcher) => {
+                    let regex = matcher.resolve(&self.variables);
 
                     if let Some(next_line) = self.lines.next() {
                         if regex.is_match(&next_line) {
@@ -127,7 +128,7 @@ impl Checker
                             return TestResultKind::fail(
                                 format_check_error(test,
                                                    directive,
-                                                   &format!("could not find match: '{}'", regex),
+                                                   &format!("could not find match: '{}'", matcher),
                                                    &next_line)
                                 );
                         }
@@ -158,17 +159,6 @@ impl Checker
                 self.variables.insert(name.to_owned(), captured_value.as_str().to_owned());
             }
         }
-    }
-
-    pub fn resolve_variables(&self, mut regex: Regex) -> Regex {
-        for (name, value) in self.variables.iter() {
-            let subst_expr = format!("[[{}]]", name);
-            let regex_str = format!("{}", regex);
-            let regex_str = regex_str.replace(&subst_expr, value);
-            regex = Regex::new(&regex_str).unwrap();
-        }
-
-        regex
     }
 }
 

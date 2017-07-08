@@ -2,7 +2,8 @@ use {Instance, Config};
 
 use tool;
 
-use regex::{Regex, Captures};
+use regex::Regex;
+use super::Matcher;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -28,8 +29,8 @@ pub struct Directive
 pub enum Command
 {
     Run(tool::Invocation),
-    Check(Regex),
-    CheckNext(Regex),
+    Check(Matcher),
+    CheckNext(Matcher),
 }
 
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -154,25 +155,8 @@ impl Directive
         }
     }
 
-    /// Converts a match string to a regex.
-    ///
-    /// Converts from the `[[capture_name:capture_regex]]` syntaxs to
-    /// a regex.
-    fn parse_regex(mut string: String) -> Regex {
-        let capture_regex = Regex::new("\\[\\[(\\w+):(.*)\\]\\]").unwrap();
-
-        if capture_regex.is_match(&string) {
-            string = capture_regex.replace_all(&string, |caps: &Captures| {
-                format!("(?P<{}>{})", caps.get(1).unwrap().as_str(), caps.get(2).unwrap().as_str())
-            }).into_owned();
-        }
-
-        Regex::new(&string).unwrap()
-    }
-
     /// Checks if a strint is a directive.
     pub fn is_directive(string: &str) -> bool {
-        // KEEP UP TO DATE WITH maybe_parse
         DIRECTIVE_REGEX.is_match(string)
     }
 
@@ -195,12 +179,12 @@ impl Directive
                 Some(Ok(Directive::new(Command::Run(invocation), line)))
             },
             "CHECK" => {
-                let regex = Self::parse_regex(after_command_str.to_owned());
-                Some(Ok(Directive::new(Command::Check(regex), line)))
+                let matcher = Matcher::parse(after_command_str);
+                Some(Ok(Directive::new(Command::Check(matcher), line)))
             },
             "CHECK-NEXT" => {
-                let regex = Self::parse_regex(after_command_str.to_owned());
-                Some(Ok(Directive::new(Command::CheckNext(regex), line)))
+                let matcher = Matcher::parse(after_command_str);
+                Some(Ok(Directive::new(Command::CheckNext(matcher), line)))
             },
             _ => {
                 Some(Err(format!("command '{}' not known", command_str)))
@@ -279,5 +263,64 @@ mod test {
     #[test]
     fn can_parse_run() {
         let _d = parse("; RUN: foo").unwrap();
+    }
+
+    mod matcher {
+        use super::super::*;
+        use std::collections::HashMap;
+
+        lazy_static! {
+            static ref VARIABLES: HashMap<String, String> = {
+                let mut v = HashMap::new();
+                v.insert("po".to_owned(), "polonium".to_owned());
+                v
+            };
+        }
+
+        fn matcher(s: &str) -> String {
+            Matcher::parse(s).resolve(&VARIABLES).as_str().to_owned()
+        }
+
+        #[test]
+        fn parses_single_text() {
+            assert_eq!(matcher("hello world"),
+                       "hello world");
+        }
+
+        #[test]
+        fn correctly_escapes_text() {
+            assert_eq!(matcher("hello()").as_str(),
+                       "hello\\(\\)");
+        }
+
+        #[test]
+        fn correctly_picks_up_single_regex() {
+            assert_eq!(matcher("[[\\d]]").as_str(),
+                       "\\d");
+        }
+
+        #[test]
+        fn correctly_picks_up_regex_between_text() {
+            assert_eq!(matcher("1[[\\d]]3").as_str(),
+                       "1\\d3");
+        }
+
+        #[test]
+        fn correctly_picks_up_named_regex() {
+            assert_eq!(matcher("[[num:\\d]]").as_str(),
+                       "(?P<num>\\d)");
+        }
+
+        #[test]
+        fn correctly_picks_up_single_variable() {
+            assert_eq!(matcher("$$po").as_str(),
+                       "polonium");
+        }
+
+        #[test]
+        fn correctly_picks_up_variable_between_junk() {
+            assert_eq!(matcher("[[[a-z]]]$$po foo").as_str(),
+                       "[a-z]polonium foo");
+        }
     }
 }

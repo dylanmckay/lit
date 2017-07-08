@@ -215,7 +215,7 @@ fn format_error(test: &Test,
                 directive: &Directive,
                 msg: &str,
                 next_line: &str) -> String {
-    format!("{}:{}: {}\nnext line: '{}'", test.path, directive.line, msg, next_line)
+    format!("{}:{}: {}\nnext line: '{}'", test.path.display(), directive.line, msg, next_line)
 }
 
 #[cfg(test)]

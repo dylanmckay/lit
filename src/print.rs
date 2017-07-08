@@ -6,19 +6,19 @@ use term;
 pub fn result(result: &TestResult) {
     match result.kind {
         TestResultKind::Pass => {
-            success(format!("PASS :: {}", result.path));
+            success(format!("PASS :: {}", result.path.display()));
         },
         TestResultKind::Skip => {
             line();
             warning(format!(
                 "SKIP :: {} (test does not contain any directives)",
-                     result.path));
+                     result.path.display()));
             line();
         },
         TestResultKind::Fail(ref msg, ref desc) => {
             line();
 
-            failure(format!("FAIL :: {}", result.path));
+            failure(format!("FAIL :: {}", result.path.display()));
             text(msg.clone());
 
             // Only print stderr if there was output

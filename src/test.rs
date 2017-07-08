@@ -4,6 +4,7 @@ use tool;
 
 use regex::{Regex, Captures};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 lazy_static! {
     static ref DIRECTIVE_REGEX: Regex = Regex::new("([A-Z-]+):(.*)").unwrap();
@@ -12,7 +13,7 @@ lazy_static! {
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct Test
 {
-    pub path: String,
+    pub path: PathBuf,
     pub directives: Vec<Directive>,
 }
 
@@ -42,7 +43,7 @@ pub enum TestResultKind
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct TestResult
 {
-    pub path: String,
+    pub path: PathBuf,
     pub kind: TestResultKind,
 }
 
@@ -61,10 +62,12 @@ pub struct Results
 
 impl Test
 {
-    pub fn parse<S,I>(name: S, chars: I) -> Result<Self,String>
-        where S: Into<String>, I: Iterator<Item=char> {
+    pub fn parse<P,I>(path: P, chars: I) -> Result<Self,String>
+        where P: AsRef<Path>, I: Iterator<Item=char> {
         let mut directives = Vec::new();
         let test_body: String = chars.collect();
+
+        let path = path.as_ref().to_owned();
 
         for (line_idx, line) in test_body.lines().enumerate() {
             let line_number = line_idx + 1;
@@ -81,7 +84,7 @@ impl Test
         }
 
         Ok(Test {
-            path: name.into(),
+            path,
             directives: directives,
         })
     }
@@ -133,7 +136,7 @@ impl Test
     /// Extra test-specific constants.
     pub fn extra_constants(&self) -> HashMap<String, String> {
         let mut c = HashMap::new();
-        c.insert("file".to_owned(), self.path.to_owned());
+        c.insert("file".to_owned(), self.path.to_str().unwrap().to_owned());
         c
     }
 
@@ -259,7 +262,6 @@ impl PartialEq for Command {
             Command::Run(ref a) => if let Command::Run(ref b) = *other { a == b } else { false },
             Command::Check(ref a) => if let Command::Check(ref b) = *other { a.to_string() == b.to_string() } else { false },
             Command::CheckNext(ref a) => if let Command::CheckNext(ref b) = *other { a.to_string() == b.to_string() } else { false },
-
         }
     }
 }

@@ -2,7 +2,8 @@
 
 ; CHECK: hello [[name:\w+]]
 hello bob
-; CHECK-NEXT: [[name]]
+
+; CHECK: goodbye $$name
 goodbye bob
 
 

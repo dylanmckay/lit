@@ -38,23 +38,22 @@ impl Instance
             Ok(o) => o,
             Err(e) => match e.kind() {
                 std::io::ErrorKind::NotFound => {
-                    return TestResultKind::Fail(
-                        format!("shell '{}' does not exist", SHELL), "".to_owned());
+                    return TestResultKind::Error(
+                        format!("shell '{}' does not exist", SHELL).into(),
+                    );
                 },
-                _ => {
-                    return TestResultKind::Fail(
-                        format!("could not execute command: {}", e), "".to_owned());
-                },
+                _ => return TestResultKind::Error(e.into()),
             },
         };
 
         if !output.status.success() {
             let stderr = String::from_utf8(output.stderr).unwrap();
 
-            return TestResultKind::Fail(format!(
-                "exited with code {}", output.status.code().unwrap()),
-                stderr
-            );
+            return TestResultKind::Fail {
+                message: format!(
+                    "exited with code {}", output.status.code().unwrap()),
+                stderr: Some(stderr),
+            };
         }
 
         let stdout = String::from_utf8(output.stdout).unwrap();
@@ -100,8 +99,8 @@ impl Checker
         for directive in test.directives.iter() {
             match directive.command {
                 Command::Run(..) => (),
-                Command::Check(ref regex) => {
-                    let regex = self.resolve_variables(regex.clone());
+                Command::Check(ref matcher) => {
+                    let regex = matcher.resolve(&self.variables);
 
                     let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
                     let matched_line = self.lines.find(|l| regex.is_match(l));
@@ -109,30 +108,32 @@ impl Checker
                     if let Some(matched_line) = matched_line {
                         self.process_captures(&regex, &matched_line);
                     } else {
-                        return TestResultKind::fail(
-                            format_check_error(test,
-                                               directive,
-                                               &format!("could not find match: '{}'", regex),
-                                               &beginning_line)
-                        );
+                        let message = format_check_error(test,
+                            directive,
+                            &format!("could not find match: '{:?}'", matcher),
+                            &beginning_line);
+                        return TestResultKind::Fail { message, stderr: None };
                     }
                 },
-                Command::CheckNext(ref regex) => {
-                    let regex = self.resolve_variables(regex.clone());
+                Command::CheckNext(ref matcher) => {
+                    let regex = matcher.resolve(&self.variables);
 
                     if let Some(next_line) = self.lines.next() {
                         if regex.is_match(&next_line) {
                             self.process_captures(&regex, &next_line);
                         } else {
-                            return TestResultKind::fail(
-                                format_check_error(test,
-                                                   directive,
-                                                   &format!("could not find match: '{}'", regex),
-                                                   &next_line)
-                                );
+                            let message = format_check_error(test,
+                                directive,
+                                &format!("could not find match: '{:?}'", matcher),
+                                &next_line);
+
+                            return TestResultKind::Fail { message, stderr: None };
                         }
                     } else {
-                        return TestResultKind::fail(format!("check-next reached the end of file"));
+                        return TestResultKind::Fail {
+                            message: format!("check-next reached the end of file"),
+                            stderr: None,
+                        };
                     }
                 },
             }
@@ -158,17 +159,6 @@ impl Checker
                 self.variables.insert(name.to_owned(), captured_value.as_str().to_owned());
             }
         }
-    }
-
-    pub fn resolve_variables(&self, mut regex: Regex) -> Regex {
-        for (name, value) in self.variables.iter() {
-            let subst_expr = format!("[[{}]]", name);
-            let regex_str = format!("{}", regex);
-            let regex_str = regex_str.replace(&subst_expr, value);
-            regex = Regex::new(&regex_str).unwrap();
-        }
-
-        regex
     }
 }
 

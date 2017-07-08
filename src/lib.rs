@@ -2,6 +2,8 @@ pub use self::config::Config;
 
 use self::test::*;
 use self::instance::Instance;
+use self::matcher::Matcher;
+pub use self::errors::*;
 
 pub mod run;
 
@@ -11,6 +13,8 @@ mod find;
 mod print;
 mod instance;
 mod config;
+mod matcher;
+mod errors;
 
 #[cfg(test)]
 mod unit_tests;
@@ -21,3 +25,5 @@ extern crate regex;
 extern crate argparse;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate error_chain;

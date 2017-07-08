@@ -1,8 +1,9 @@
-use {Instance, Config};
+use {Instance, Config, Error};
 
 use tool;
 
-use regex::{Regex, Captures};
+use regex::Regex;
+use super::Matcher;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -28,19 +29,23 @@ pub struct Directive
 pub enum Command
 {
     Run(tool::Invocation),
-    Check(Regex),
-    CheckNext(Regex),
+    Check(Matcher),
+    CheckNext(Matcher),
 }
 
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Debug)]
 pub enum TestResultKind
 {
     Pass,
-    Fail(String, String),
+    Error(Error),
+    Fail {
+        message: String,
+        stderr: Option<String>,
+    },
     Skip,
 }
 
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Debug)]
 pub struct TestResult
 {
     pub path: PathBuf,
@@ -54,7 +59,7 @@ pub struct Context
     pub tests: Vec<Test>,
 }
 
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Debug)]
 pub struct Results
 {
     test_results: Vec<TestResult>,
@@ -108,10 +113,10 @@ impl Test
                         kind: TestResultKind::Pass,
                     }
                 },
-                TestResultKind::Fail(msg, desc) => {
+                _ => {
                     return TestResult {
                         path: self.path.clone(),
-                        kind: TestResultKind::Fail(msg, desc),
+                        kind,
                     }
                 },
             }
@@ -154,25 +159,8 @@ impl Directive
         }
     }
 
-    /// Converts a match string to a regex.
-    ///
-    /// Converts from the `[[capture_name:capture_regex]]` syntaxs to
-    /// a regex.
-    fn parse_regex(mut string: String) -> Regex {
-        let capture_regex = Regex::new("\\[\\[(\\w+):(.*)\\]\\]").unwrap();
-
-        if capture_regex.is_match(&string) {
-            string = capture_regex.replace_all(&string, |caps: &Captures| {
-                format!("(?P<{}>{})", caps.get(1).unwrap().as_str(), caps.get(2).unwrap().as_str())
-            }).into_owned();
-        }
-
-        Regex::new(&string).unwrap()
-    }
-
     /// Checks if a strint is a directive.
     pub fn is_directive(string: &str) -> bool {
-        // KEEP UP TO DATE WITH maybe_parse
         DIRECTIVE_REGEX.is_match(string)
     }
 
@@ -195,24 +183,17 @@ impl Directive
                 Some(Ok(Directive::new(Command::Run(invocation), line)))
             },
             "CHECK" => {
-                let regex = Self::parse_regex(after_command_str.to_owned());
-                Some(Ok(Directive::new(Command::Check(regex), line)))
+                let matcher = Matcher::parse(after_command_str);
+                Some(Ok(Directive::new(Command::Check(matcher), line)))
             },
             "CHECK-NEXT" => {
-                let regex = Self::parse_regex(after_command_str.to_owned());
-                Some(Ok(Directive::new(Command::CheckNext(regex), line)))
+                let matcher = Matcher::parse(after_command_str);
+                Some(Ok(Directive::new(Command::CheckNext(matcher), line)))
             },
             _ => {
                 Some(Err(format!("command '{}' not known", command_str)))
             },
         }
-    }
-}
-
-impl TestResultKind
-{
-    pub fn fail<S: Into<String>>(s: S) -> Self {
-        TestResultKind::Fail(s.into(), "".to_owned())
     }
 }
 
@@ -281,3 +262,4 @@ mod test {
         let _d = parse("; RUN: foo").unwrap();
     }
 }
+

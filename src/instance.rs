@@ -110,7 +110,7 @@ impl Checker
                     } else {
                         let message = format_check_error(test,
                             directive,
-                            &format!("could not find match: '{:?}'", matcher),
+                            &format!("could not find match: '{}'", matcher),
                             &beginning_line);
                         return TestResultKind::Fail { message, stderr: None };
                     }
@@ -124,7 +124,7 @@ impl Checker
                         } else {
                             let message = format_check_error(test,
                                 directive,
-                                &format!("could not find match: '{:?}'", matcher),
+                                &format!("could not find match: '{}'", matcher),
                                 &next_line);
 
                             return TestResultKind::Fail { message, stderr: None };

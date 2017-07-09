@@ -1,6 +1,6 @@
 [package]
 name = "lit"
-version = "0.2.6"
+version = "0.2.7"
 authors = ["Dylan McKay <me@dylanmckay.io>"]
 
 description = "Integrated testing tool"

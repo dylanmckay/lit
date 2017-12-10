@@ -1,10 +1,5 @@
 //! Routines for running tests.
 
-use argparse;
-
-use argparse::ArgumentParser;
-use std::borrow::Borrow;
-
 use {Context, Config, print};
 use test::TestResultKind;
 
@@ -20,31 +15,11 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
     let mut config = Config::default();
     config_fn(&mut config);
 
-    let mut paths: Vec<String> = config.test_paths.iter().map(|p| p.display().to_string()).collect();
-
-    {
-        let mut tmp = false;
-        let mut ap = ArgumentParser::new();
-        ap.set_description("Runs tests");
-
-        ap.refer(&mut paths)
-            .add_argument("paths", argparse::List,
-                          r#"Paths to test"#);
-        // Required in order to use 'cargo test --nocapture'.
-        ap.refer(&mut tmp)
-            .add_option(&["--nocapture"], argparse::StoreTrue,
-            "ignore this");
-        ap.parse_args_or_exit();
+    if config.test_paths.is_empty() {
+        util::abort("no test paths given to lit")
     }
 
-    if paths.is_empty() {
-        util::abort("no filenames given")
-    }
-
-    let paths = paths.iter()
-                     .map(|s| s.borrow());
-
-    let test_paths = match ::find::in_paths(paths, &config) {
+    let test_paths = match ::find::with_config(&config) {
         Ok(paths) => paths,
         Err(e) => util::abort(format!("could not find files: {}", e)),
     };

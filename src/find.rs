@@ -4,13 +4,12 @@ use std;
 use walkdir::WalkDir;
 
 /// Recursively finds tests for the given paths.
-pub fn in_paths<'a,P>(paths: P,
-                      config: &Config) -> Result<Vec<String>,String>
-    where P: IntoIterator<Item=&'a str> {
+pub fn with_config(config: &Config) -> Result<Vec<String>,String> {
     let mut tests = Vec::new();
 
-    for path in paths.into_iter() {
-        let path_tests = in_path(path, config)?;
+    for path in config.test_paths.iter() {
+        let path_str = path.display().to_string();
+        let path_tests = in_path(&path_str, config)?;
         tests.extend(path_tests.into_iter());
     }
 

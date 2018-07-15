@@ -138,11 +138,11 @@ impl Test
         }).collect()
     }
 
-    /// Extra test-specific constants.
-    pub fn extra_constants(&self) -> HashMap<String, String> {
-        let mut c = HashMap::new();
-        c.insert("file".to_owned(), self.path.to_str().unwrap().to_owned());
-        c
+    /// Extra test-specific variables.
+    pub fn variables(&self) -> HashMap<String, String> {
+        let mut v = HashMap::new();
+        v.insert("file".to_owned(), self.path.to_str().unwrap().to_owned());
+        v
     }
 
     pub fn is_empty(&self) -> bool {

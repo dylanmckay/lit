@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::collections::HashMap;
+use std::fmt;
 
 /// The configuration of the test runner.
 #[derive(Clone, Debug)]
@@ -11,7 +12,13 @@ pub struct Config
     pub test_paths: Vec<PathBuf>,
     /// Constants that tests can refer to via `@<name>` syntax.
     pub constants: HashMap<String, String>,
+    /// A function which used to dynamically lookup variables.
+    pub variable_lookup: Option<VariableLookup>,
 }
+
+/// A function which can dynamically define newly used variables in a test.
+#[derive(Clone)]
+pub struct VariableLookup(fn(&str) -> Option<String>);
 
 impl Config
 {
@@ -35,6 +42,27 @@ impl Config
         self.supported_file_extensions.iter().
             find(|ext| &ext[..] == extension).is_some()
     }
+
+    /// Looks up a variable.
+    pub fn lookup_variable<'a>(&self,
+                           name: &str,
+                           variables: &'a mut HashMap<String, String>)
+        -> &'a str {
+        if !variables.contains_key(name) {
+            match self.variable_lookup {
+                // We have a dynamic variable fn.
+                Some(VariableLookup(variable_lookup)) => match variable_lookup(name) {
+                    Some(initial_value) => {
+                        variables.insert(name.to_owned(), initial_value.clone());
+                    },
+                    None => (),
+                },
+                None => (),
+            }
+        }
+
+        variables.get(name).expect("no constant with that name exists")
+    }
 }
 
 impl Default for Config
@@ -44,6 +72,48 @@ impl Default for Config
             supported_file_extensions: Vec::new(),
             test_paths: Vec::new(),
             constants: HashMap::new(),
+            variable_lookup: None,
         }
     }
 }
+
+impl fmt::Debug for VariableLookup {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        "<function>".fmt(fmt)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn lookup_variable_works_correctly() {
+        let config = Config {
+            variable_lookup: Some(VariableLookup(|v| {
+                if v.contains("tempfile") { Some(format!("/tmp/temp-{}", v.as_bytes().as_ptr() as usize)) } else { None }
+            })),
+            constants: vec![("name".to_owned(), "bob".to_owned())].into_iter().collect(),
+            ..Config::default()
+        };
+        let mut variables = config.constants.clone();
+
+        // Can lookup constants
+        assert_eq!("bob", config.lookup_variable("name", &mut variables),
+                   "cannot lookup constants by name");
+        let first_temp = config.lookup_variable("first_tempfile", &mut variables).to_owned();
+        let second_temp = config.lookup_variable("second_tempfile", &mut variables).to_owned();
+
+        assert!(first_temp != second_temp,
+                "different temporary paths should be different");
+
+        assert_eq!(first_temp,
+                   config.lookup_variable("first_tempfile", &mut variables),
+                   "first temp has changed its value");
+
+        assert_eq!(second_temp,
+                   config.lookup_variable("second_tempfile", &mut variables),
+                   "second temp has changed its value");
+    }
+}
+

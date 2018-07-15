@@ -1,3 +1,4 @@
+use Config;
 use regex::{self, Regex};
 
 use std::collections::HashMap;
@@ -109,14 +110,15 @@ impl Matcher {
 
         Matcher { components: components }
     }
-    pub fn resolve(&self, variables: &HashMap<String, String>) -> Regex {
+
+    pub fn resolve(&self, config: &Config,
+                   variables: &mut HashMap<String, String>) -> Regex {
         let regex_parts: Vec<_> = self.components.iter().map(|comp| match *comp {
             Component::Text(ref text) => regex::escape(text),
             Component::Variable(ref name) => {
                 // FIXME: proper error handling.
-                let value = variables.get(name).expect("no variable with that name");
-                println!("RESOLV: {:?}", value);
-                value.clone()
+                let value = config.lookup_variable(name, variables);
+                value.to_owned()
             },
             Component::Regex(ref regex) => regex.clone(),
             Component::NamedRegex { ref name, ref regex } => format!("(?P<{}>{})", name, regex),
@@ -155,7 +157,7 @@ mod test {
     }
 
     fn matcher(s: &str) -> String {
-        Matcher::parse(s).resolve(&VARIABLES).as_str().to_owned()
+        Matcher::parse(s).resolve(&Config::default(), &mut VARIABLES.clone()).as_str().to_owned()
     }
 
     #[test]

@@ -61,16 +61,16 @@ impl Instance
         let stdout_lines: Vec<_> = stdout.lines().map(|l| l.trim().to_owned()).collect();
         let stdout: String = stdout_lines.join("\n");
 
-        Checker::new(stdout).run(&test)
+        Checker::new(stdout).run(config, &test)
     }
 
     pub fn build_command(&self,
                          test: &Test,
                          config: &Config) -> process::Command {
-        let mut constants = config.constants.clone();
-        constants.extend(test.extra_constants());
+        let mut variables = config.constants.clone();
+        variables.extend(test.variables());
 
-        let command_line = self.invocation.resolve(&constants);
+        let command_line = self.invocation.resolve(&config, &mut variables);
 
         let mut cmd = process::Command::new("bash");
         cmd.args(&["-c", &command_line]);
@@ -95,12 +95,12 @@ impl Checker
         }
     }
 
-    fn run(&mut self, test: &Test) -> TestResultKind {
+    fn run(&mut self, config: &Config, test: &Test) -> TestResultKind {
         for directive in test.directives.iter() {
             match directive.command {
                 Command::Run(..) => (),
                 Command::Check(ref matcher) => {
-                    let regex = matcher.resolve(&self.variables);
+                    let regex = matcher.resolve(config, &mut self.variables);
 
                     let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
                     let matched_line = self.lines.find(|l| regex.is_match(l));
@@ -116,7 +116,7 @@ impl Checker
                     }
                 },
                 Command::CheckNext(ref matcher) => {
-                    let regex = matcher.resolve(&self.variables);
+                    let regex = matcher.resolve(config, &mut self.variables);
 
                     if let Some(next_line) = self.lines.next() {
                         if regex.is_match(&next_line) {

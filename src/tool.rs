@@ -1,5 +1,6 @@
 // FIXME: Rename this to `CommandLine`.
 
+use Config;
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -44,7 +45,7 @@ impl Invocation
         })
     }
 
-    pub fn resolve(&self, constants: &HashMap<String, String>) -> String {
+    pub fn resolve(&self, config: &Config, constants: &mut HashMap<String, String>) -> String {
         let mut command_line = String::new();
 
         let _cmd = self.original_command.clone();
@@ -63,8 +64,7 @@ impl Invocation
             if let Some(next_span) = constant_spans.next() {
                 assert!(index <= next_span.start, "went too far");
 
-                let constant_value = constants.get(&next_span.name)
-                    .expect("no constant with that name exists");
+                let constant_value = config.lookup_variable(&next_span.name, constants);
 
                 // Check if there is some text between us and the regex.
                 if next_span.start != index {
@@ -75,7 +75,7 @@ impl Invocation
                 }
 
                 assert_eq!(index, next_span.start, "we should be up to the regex");
-                command_line += constant_value;
+                command_line += &constant_value;
                 index += next_span.name.len() + 1; // Skip the `@` and the name.
             } else {
                 // Almost finished, just copy over the rest of the text.
@@ -101,28 +101,28 @@ mod test {
         };
     }
 
-    fn resolve(s: &str, consts: &HashMap<String, String>) -> String {
+    fn resolve(s: &str, consts: &mut HashMap<String, String>) -> String {
         let invocation = Invocation::parse(s.split_whitespace()).unwrap();
-        invocation.resolve(consts)
+        invocation.resolve(&Config::default(), consts)
     }
 
     #[test]
     fn no_constants_is_nop() {
-        assert_eq!(resolve("hello world", &BASIC_CONSTANTS), "hello world");
+        assert_eq!(resolve("hello world", &mut BASIC_CONSTANTS.clone()), "hello world");
     }
 
     #[test]
     fn only_const() {
-        assert_eq!(resolve("@cc", &BASIC_CONSTANTS), "clang++");
+        assert_eq!(resolve("@cc", &mut BASIC_CONSTANTS.clone()), "clang++");
     }
 
     #[test]
     fn junk_then_const() {
-        assert_eq!(resolve("foo bar! @cc", &BASIC_CONSTANTS), "foo bar! clang++");
+        assert_eq!(resolve("foo bar! @cc", &mut BASIC_CONSTANTS.clone()), "foo bar! clang++");
     }
 
     #[test]
     fn junk_then_const_then_junk() {
-        assert_eq!(resolve("hello @cc world", &BASIC_CONSTANTS), "hello clang++ world");
+        assert_eq!(resolve("hello @cc world", &mut BASIC_CONSTANTS.clone()), "hello clang++ world");
     }
 }

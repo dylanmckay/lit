@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::collections::HashMap;
 use std::fmt;
+use tempfile::NamedTempFile;
 
 /// The configuration of the test runner.
 #[derive(Clone, Debug)]
@@ -13,7 +14,12 @@ pub struct Config
     /// Constants that tests can refer to via `@<name>` syntax.
     pub constants: HashMap<String, String>,
     /// A function which used to dynamically lookup variables.
-    pub variable_lookup: Option<VariableLookup>,
+    ///
+    /// The default variable lookup can be found at `Config::DEFAULT_VARIABLE_LOOKUP`.
+    ///
+    /// In your own custom variable lookups, most of the time you will want to
+    /// include a fallback call to `Config::DEFAULT_VARIABLE_LOOKUP`.
+    pub variable_lookup: VariableLookup,
 }
 
 /// A function which can dynamically define newly used variables in a test.
@@ -22,6 +28,21 @@ pub struct VariableLookup(fn(&str) -> Option<String>);
 
 impl Config
 {
+    /// The default variable lookup function.
+    ///
+    /// The supported variables are:
+    ///
+    /// * Any variable containing the string `"tempfile"`
+    ///   * Each distinct variable will be resolved to a distinct temporary file path.
+    pub const DEFAULT_VARIABLE_LOOKUP: VariableLookup = VariableLookup(|v| {
+        if v.contains("tempfile") {
+            let temp_file = NamedTempFile::new().expect("failed to create a temporary file");
+            Some(temp_file.into_temp_path().to_str().expect("temp file path is not utf-8").to_owned())
+        } else {
+            None
+        }
+    });
+
     /// Marks a file extension as supported by the runner.
     ///
     /// We only attempt to run tests for files within the extension
@@ -49,13 +70,9 @@ impl Config
                            variables: &'a mut HashMap<String, String>)
         -> &'a str {
         if !variables.contains_key(name) {
-            match self.variable_lookup {
-                // We have a dynamic variable fn.
-                Some(VariableLookup(variable_lookup)) => match variable_lookup(name) {
-                    Some(initial_value) => {
-                        variables.insert(name.to_owned(), initial_value.clone());
-                    },
-                    None => (),
+            match self.variable_lookup.0(name) {
+                Some(initial_value) => {
+                    variables.insert(name.to_owned(), initial_value.clone());
                 },
                 None => (),
             }
@@ -72,7 +89,7 @@ impl Default for Config
             supported_file_extensions: Vec::new(),
             test_paths: Vec::new(),
             constants: HashMap::new(),
-            variable_lookup: None,
+            variable_lookup: Config::DEFAULT_VARIABLE_LOOKUP,
         }
     }
 }
@@ -90,9 +107,9 @@ mod test {
     #[test]
     fn lookup_variable_works_correctly() {
         let config = Config {
-            variable_lookup: Some(VariableLookup(|v| {
+            variable_lookup: VariableLookup(|v| {
                 if v.contains("tempfile") { Some(format!("/tmp/temp-{}", v.as_bytes().as_ptr() as usize)) } else { None }
-            })),
+            }),
             constants: vec![("name".to_owned(), "bob".to_owned())].into_iter().collect(),
             ..Config::default()
         };

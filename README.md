@@ -75,5 +75,19 @@ CHECK: <substring to look for>
 
 If the substring is not found, then the test immediately fails.
 
+## Variables
+
+Variables can be used in directives by `@<variable name>`. The variable is substituted in-place with
+the value of the variable at the time of the test.
+
+## Default variables available to tests
+
+These variables can be used by tests in directives.
+
+| Name  (`*` = wildcard) | Description | Substituted value                          |
+|-------------------------|--------------|---------------------------------------------|
+| `@file`                 |              | The path the the test file being executed.  |
+| `@*tempfile*`           | Any variable containing the text `tempfile` | A temporary file path. Subsequent uses of the same tempfile variable will give the same path. It is possible to use multiple tempfiles in one test by giving them separate names, like `@first_tempfile` and `@second_tempfile` |
+
 
 

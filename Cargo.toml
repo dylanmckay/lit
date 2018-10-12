@@ -13,8 +13,8 @@ keywords = ["testing"]
 
 [dependencies]
 error-chain = "0.12"
-lazy_static = "1.0"
+lazy_static = "1.1"
 regex = "1.0"
 tempfile = "3.0"
 term = "0.5"
-walkdir = "2.1"
+walkdir = "2.2"

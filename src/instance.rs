@@ -1,6 +1,6 @@
 use {Config, Test, Directive, Command, TestResultKind};
 use std::collections::HashMap;
-use std::{env, process};
+use std::{env, fs, process};
 use regex::Regex;
 
 use tool;
@@ -136,6 +136,19 @@ impl Checker
                         };
                     }
                 },
+            }
+        }
+
+        // N.B. This currently only runs for successful
+        // test runs. Perhaps it should run for all?
+        if config.cleanup_temporary_files {
+            let tempfiles = self.variables.iter()
+                                  .filter(|(k,_)| k.contains("tempfile"))
+                                  .map(|(_,v)| v);
+
+            for tempfile in tempfiles {
+                // Ignore errors, these are tempfiles, they go away anyway.
+                fs::remove_file(tempfile).ok();
             }
         }
 

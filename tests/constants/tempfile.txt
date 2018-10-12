@@ -1,0 +1,6 @@
+; RUN: echo "hello world once" > @first_tempfile && cat @first_tempfile
+; RUN: echo "hello world twice" > @second_tempfile && cat @second_tempfile
+; RUN: echo "hello world thrice" > @tempfiles_for_days && cat @tempfiles_for_days
+
+; CHECK: hello world
+

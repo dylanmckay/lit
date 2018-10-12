@@ -5,7 +5,7 @@ use regex::Regex;
 use std::collections::HashMap;
 
 lazy_static! {
-    static ref CONSTANT_REGEX: Regex = Regex::new("@([a-z]+)").unwrap();
+    static ref CONSTANT_REGEX: Regex = Regex::new("@([_a-zA-Z]+)").unwrap();
 }
 
 /// A tool invocation.

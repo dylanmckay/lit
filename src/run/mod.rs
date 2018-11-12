@@ -1,5 +1,6 @@
 //! Routines for running tests.
 
+mod find_files;
 mod test_evaluator;
 
 use {Config, print};
@@ -30,7 +31,7 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
         util::abort("no test paths given to lit")
     }
 
-    let test_paths = match ::find_files::with_config(&config) {
+    let test_paths = match find_files::with_config(&config) {
         Ok(paths) => paths,
         Err(e) => util::abort(format!("could not find files: {}", e)),
     };

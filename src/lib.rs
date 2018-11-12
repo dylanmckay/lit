@@ -8,7 +8,6 @@ pub mod vars;
 mod model;
 mod parse;
 
-mod find_files;
 mod print;
 mod config;
 mod errors;

@@ -2,12 +2,14 @@ pub use self::config::Config;
 
 use self::test::*;
 use self::instance::Instance;
-use self::matcher::Matcher;
 pub use self::errors::*;
 
 pub mod run;
 
 mod exec;
+mod model;
+mod parse;
+
 mod test;
 mod find_files;
 mod print;

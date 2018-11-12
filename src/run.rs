@@ -1,7 +1,7 @@
 //! Routines for running tests.
 
 use {Context, Config, print};
-use test::TestResultKind;
+use model::*;
 
 /// Runs all tests according to a given config.
 ///

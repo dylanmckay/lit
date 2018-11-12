@@ -1,16 +1,16 @@
-use {Config, Test, Directive, Command, TestResultKind};
+use {Config, TestResultKind};
 use std::collections::HashMap;
 use std::{env, fs, process};
 use regex::Regex;
+use model::*;
 
-use exec::tool;
 use std;
 
 const SHELL: &'static str = "bash";
 
 pub struct Instance
 {
-    pub invocation: tool::Invocation,
+    pub invocation: Invocation,
 }
 
 struct Checker
@@ -27,7 +27,7 @@ struct Lines {
 
 impl Instance
 {
-    pub fn new(invocation: tool::Invocation) -> Self {
+    pub fn new(invocation: Invocation) -> Self {
         Instance { invocation: invocation }
     }
 

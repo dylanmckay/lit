@@ -8,13 +8,6 @@ lazy_static! {
     static ref CONSTANT_REGEX: Regex = Regex::new("@([_a-zA-Z]+)").unwrap();
 }
 
-/// A tool invocation.
-#[derive(Clone,Debug,PartialEq,Eq)]
-pub struct Invocation
-{
-    original_command: String,
-}
-
 /// A span representing where a constant name resides in a string.
 #[derive(Debug)]
 struct ConstantSpan {
@@ -28,27 +21,10 @@ struct ConstantSpan {
 
 impl Invocation
 {
-    /// Parses a tool invocation.
-    ///
-    /// It is generatlly in the format:
-    ///
-    /// ``` bash
-    /// <tool-name> [arg1] [arg2] ...
-    /// ```
-    pub fn parse<'a,I>(words: I) -> Result<Self,String>
-        where I: Iterator<Item=&'a str> {
-        let parts: Vec<_> = words.collect();
-        let original_command = parts.join(" ");
-
-        Ok(Invocation {
-            original_command: original_command,
-        })
-    }
-
     pub fn resolve(&self, config: &Config, constants: &mut HashMap<String, String>) -> String {
         let mut command_line = String::new();
 
-        let _cmd = self.original_command.clone();
+        let _cmd: String = self.original_command.clone();
         let mut constant_spans = CONSTANT_REGEX.find_iter(&_cmd).map(|mat| {
             let name = mat.as_str()[1..].to_owned(); // Skip the '@' character.
 

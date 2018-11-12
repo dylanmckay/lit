@@ -1,7 +1,15 @@
 //! Routines for running tests.
 
-use {Context, Config, print};
+use {Config, print};
+use test::Results;
 use model::*;
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+struct Context
+{
+    pub exec_search_dirs: Vec<String>,
+    pub tests: Vec<Test>,
+}
 
 /// Runs all tests according to a given config.
 ///
@@ -88,6 +96,35 @@ mod util
         print::failure(format!("error: {}", msg.into()));
 
         std::process::exit(1);
+    }
+}
+
+impl Context
+{
+    pub fn new() -> Self {
+        Context {
+            exec_search_dirs: Vec::new(),
+            tests: Vec::new(),
+        }
+    }
+
+    pub fn test(mut self, test: Test) -> Self {
+        self.tests.push(test);
+        self
+    }
+
+    pub fn run(&self, config: &Config) -> Results {
+        let test_results = self.tests.iter().map(|test| {
+            test.run(config)
+        }).collect();
+
+        Results {
+            test_results: test_results,
+        }
+    }
+
+    pub fn add_search_dir(&mut self, dir: String) {
+        self.exec_search_dirs.push(dir);
     }
 }
 

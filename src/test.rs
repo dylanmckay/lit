@@ -3,17 +3,10 @@ use model::*;
 
 use std::collections::HashMap;
 
-#[derive(Clone,Debug,PartialEq,Eq)]
-pub struct Context
-{
-    pub exec_search_dirs: Vec<String>,
-    pub tests: Vec<Test>,
-}
-
 #[derive(Debug)]
 pub struct Results
 {
-    test_results: Vec<TestResult>,
+    pub test_results: Vec<TestResult>,
 }
 
 impl Test
@@ -81,35 +74,6 @@ impl Directive
             command: command,
             line: line,
         }
-    }
-}
-
-impl Context
-{
-    pub fn new() -> Self {
-        Context {
-            exec_search_dirs: Vec::new(),
-            tests: Vec::new(),
-        }
-    }
-
-    pub fn test(mut self, test: Test) -> Self {
-        self.tests.push(test);
-        self
-    }
-
-    pub fn run(&self, config: &Config) -> Results {
-        let test_results = self.tests.iter().map(|test| {
-            test.run(config)
-        }).collect();
-
-        Results {
-            test_results: test_results,
-        }
-    }
-
-    pub fn add_search_dir(&mut self, dir: String) {
-        self.exec_search_dirs.push(dir);
     }
 }
 

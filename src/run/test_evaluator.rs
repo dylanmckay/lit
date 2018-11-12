@@ -1,16 +1,18 @@
-use {Config, Test, Directive, Command, TestResultKind};
+use Config;
 use std::collections::HashMap;
 use std::{env, fs, process};
 use regex::Regex;
+use model::*;
+use parse;
+use vars;
 
-use exec::tool;
 use std;
 
 const SHELL: &'static str = "bash";
 
-pub struct Instance
+pub struct TestEvaluator
 {
-    pub invocation: tool::Invocation,
+    pub invocation: Invocation,
 }
 
 struct Checker
@@ -25,14 +27,14 @@ struct Lines {
     current: usize,
 }
 
-impl Instance
+impl TestEvaluator
 {
-    pub fn new(invocation: tool::Invocation) -> Self {
-        Instance { invocation: invocation }
+    pub fn new(invocation: Invocation) -> Self {
+        TestEvaluator { invocation: invocation }
     }
 
-    pub fn run(self, test: &Test, config: &Config) -> TestResultKind {
-        let mut cmd = self.build_command(test, config);
+    pub fn run(self, test_file: &TestFile, config: &Config) -> TestResultKind {
+        let mut cmd = self.build_command(test_file, config);
 
         let output = match cmd.output() {
             Ok(o) => o,
@@ -61,16 +63,16 @@ impl Instance
         let stdout_lines: Vec<_> = stdout.lines().map(|l| l.trim().to_owned()).collect();
         let stdout: String = stdout_lines.join("\n");
 
-        Checker::new(stdout).run(config, &test)
+        Checker::new(stdout).run(config, &test_file)
     }
 
     pub fn build_command(&self,
-                         test: &Test,
+                         test_file: &TestFile,
                          config: &Config) -> process::Command {
         let mut variables = config.constants.clone();
-        variables.extend(test.variables());
+        variables.extend(test_file.variables());
 
-        let command_line = self.invocation.resolve(&config, &mut variables);
+        let command_line: String = vars::resolve::invocation(&self.invocation, &config, &mut variables);
 
         let mut cmd = process::Command::new("bash");
         cmd.args(&["-c", &command_line]);
@@ -95,9 +97,9 @@ impl Checker
         }
     }
 
-    fn run(&mut self, config: &Config, test: &Test) -> TestResultKind {
+    fn run(&mut self, config: &Config, test_file: &TestFile) -> TestResultKind {
         let mut expect_test_pass = true;
-        let result = self.run_expecting_pass(config, test, &mut expect_test_pass);
+        let result = self.run_expecting_pass(config, test_file, &mut expect_test_pass);
 
         if expect_test_pass {
             result
@@ -115,15 +117,15 @@ impl Checker
 
     fn run_expecting_pass(&mut self,
                 config: &Config,
-                test: &Test,
+                test_file: &TestFile,
                 expect_test_pass: &mut bool) -> TestResultKind {
-        for directive in test.directives.iter() {
+        for directive in test_file.directives.iter() {
             match directive.command {
                 // Some tests can be marked as expected failures.
                 Command::XFail => *expect_test_pass = false,
                 Command::Run(..) => (),
-                Command::Check(ref matcher) => {
-                    let regex = matcher.resolve(config, &mut self.variables);
+                Command::Check(ref text_pattern) => {
+                    let regex = vars::resolve::text_pattern(&text_pattern, config, &mut self.variables);
 
                     let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
                     let matched_line = self.lines.find(|l| regex.is_match(l));
@@ -131,23 +133,23 @@ impl Checker
                     if let Some(matched_line) = matched_line {
                         self.process_captures(&regex, &matched_line);
                     } else {
-                        let message = format_check_error(test,
+                        let message = format_check_error(test_file,
                             directive,
-                            &format!("could not find match: '{}'", matcher),
+                            &format!("could not find match: '{}'", text_pattern),
                             &beginning_line);
                         return TestResultKind::Fail { message, stderr: None };
                     }
                 },
-                Command::CheckNext(ref matcher) => {
-                    let regex = matcher.resolve(config, &mut self.variables);
+                Command::CheckNext(ref text_pattern) => {
+                    let regex = vars::resolve::text_pattern(&text_pattern, config, &mut self.variables);
 
                     if let Some(next_line) = self.lines.next() {
                         if regex.is_match(&next_line) {
                             self.process_captures(&regex, &next_line);
                         } else {
-                            let message = format_check_error(test,
+                            let message = format_check_error(test_file,
                                 directive,
-                                &format!("could not find match: '{}'", matcher),
+                                &format!("could not find pattern: '{}'", text_pattern),
                                 &next_line);
 
                             return TestResultKind::Fail { message, stderr: None };
@@ -211,7 +213,7 @@ impl Lines {
         if self.current > self.lines.len() { return None; }
 
         self.lines[self.current..].iter()
-            .position(|l| !Directive::is_directive(l))
+            .position(|l| parse::possible_directive(l, 0).is_none())
             .map(|offset| self.current + offset)
     }
 }
@@ -237,18 +239,18 @@ impl From<String> for Lines
     }
 }
 
-fn format_check_error(test: &Test,
+fn format_check_error(test_file: &TestFile,
                       directive: &Directive,
                       msg: &str,
                       next_line: &str) -> String {
-    self::format_error(test, directive, msg, next_line)
+    self::format_error(test_file, directive, msg, next_line)
 }
 
-fn format_error(test: &Test,
+fn format_error(test_file: &TestFile,
                 directive: &Directive,
                 msg: &str,
                 next_line: &str) -> String {
-    format!("{}:{}: {}\nnext line: '{}'", test.path.display(), directive.line, msg, next_line)
+    format!("{}:{}: {}\nnext line: '{}'", test_file.path.display(), directive.line, msg, next_line)
 }
 
 #[cfg(test)]

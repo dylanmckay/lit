@@ -1,3 +1,5 @@
+//! The type that stores testing configuration.
+
 use std::path::PathBuf;
 use std::collections::HashMap;
 use std::fmt;

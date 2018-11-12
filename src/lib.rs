@@ -1,23 +1,19 @@
 pub use self::config::Config;
 
-use self::test::*;
-use self::instance::Instance;
-use self::matcher::Matcher;
 pub use self::errors::*;
 
 pub mod run;
+pub mod vars;
 
-mod exec;
-mod test;
-mod find_files;
+mod model;
+mod parse;
+
 mod print;
-mod instance;
 mod config;
-mod matcher;
 mod errors;
 
 #[cfg(test)]
-mod unit_tests;
+mod lit_unit_tests;
 
 #[macro_use]
 extern crate error_chain;

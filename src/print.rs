@@ -1,4 +1,4 @@
-use {TestResult,TestResultKind};
+use model::*;
 
 use std::io;
 use std::io::prelude::*;

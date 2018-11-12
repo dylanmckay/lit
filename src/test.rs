@@ -28,20 +28,27 @@ pub struct Directive
 #[derive(Clone,Debug)]
 pub enum Command
 {
+    /// Run an external tool.
     Run(tool::Invocation),
+    /// Verify that the output text matches an expression.
     Check(Matcher),
+    /// Verify that the very next output line matches an expression.
     CheckNext(Matcher),
+    /// Mark the test as supposed to fail.
+    XFail,
 }
 
 #[derive(Debug)]
 pub enum TestResultKind
 {
     Pass,
+    UnexpectedPass,
     Error(Error),
     Fail {
         message: String,
         stderr: Option<String>,
     },
+    ExpectedFailure,
     Skip,
 }
 
@@ -190,6 +197,9 @@ impl Directive
                 let matcher = Matcher::parse(after_command_str);
                 Some(Ok(Directive::new(Command::CheckNext(matcher), line)))
             },
+            "XFAIL" => {
+                Some(Ok(Directive::new(Command::XFail, line)))
+            },
             _ => {
                 Some(Err(format!("command '{}' not known", command_str)))
             },
@@ -243,6 +253,7 @@ impl PartialEq for Command {
             Command::Run(ref a) => if let Command::Run(ref b) = *other { a == b } else { false },
             Command::Check(ref a) => if let Command::Check(ref b) = *other { a.to_string() == b.to_string() } else { false },
             Command::CheckNext(ref a) => if let Command::CheckNext(ref b) = *other { a.to_string() == b.to_string() } else { false },
+            Command::XFail => *other == Command::XFail,
         }
     }
 }

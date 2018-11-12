@@ -15,6 +15,9 @@ pub fn result(result: &TestResult) {
         TestResultKind::Pass => {
             success(format!("PASS :: {}", result.path.display()));
         },
+        TestResultKind::UnexpectedPass => {
+            failure(format!("UNEXPECTED PASS :: {}", result.path.display()));
+        },
         TestResultKind::Skip => {
             line();
             warning(format!(
@@ -46,6 +49,9 @@ pub fn result(result: &TestResult) {
                 }
             }
             line();
+        },
+        TestResultKind::ExpectedFailure => {
+            warning(format!("XFAIL :: {}", result.path.display()));
         },
     }
 }

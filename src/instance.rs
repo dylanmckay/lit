@@ -96,8 +96,31 @@ impl Checker
     }
 
     fn run(&mut self, config: &Config, test: &Test) -> TestResultKind {
+        let mut expect_test_pass = true;
+        let result = self.run_expecting_pass(config, test, &mut expect_test_pass);
+
+        if expect_test_pass {
+            result
+        } else { // expected failure
+            match result {
+                TestResultKind::Pass => TestResultKind::UnexpectedPass,
+                TestResultKind::Error(_) |
+                    TestResultKind::Fail { .. } => TestResultKind::ExpectedFailure,
+                TestResultKind::Skip => TestResultKind::Skip,
+                TestResultKind::UnexpectedPass |
+                    TestResultKind::ExpectedFailure => unreachable!(),
+            }
+        }
+    }
+
+    fn run_expecting_pass(&mut self,
+                config: &Config,
+                test: &Test,
+                expect_test_pass: &mut bool) -> TestResultKind {
         for directive in test.directives.iter() {
             match directive.command {
+                // Some tests can be marked as expected failures.
+                Command::XFail => *expect_test_pass = false,
                 Command::Run(..) => (),
                 Command::Check(ref matcher) => {
                     let regex = matcher.resolve(config, &mut self.variables);

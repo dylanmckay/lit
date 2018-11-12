@@ -1,0 +1,6 @@
+; RUN: cat @file
+; XFAIL:
+
+; CHECK: hello world
+hello cruel world
+

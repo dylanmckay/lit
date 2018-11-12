@@ -1,6 +1,5 @@
 pub use self::config::Config;
 
-use self::instance::Instance;
 pub use self::errors::*;
 
 pub mod run;
@@ -11,7 +10,6 @@ mod parse;
 
 mod find_files;
 mod print;
-mod instance;
 mod config;
 mod errors;
 

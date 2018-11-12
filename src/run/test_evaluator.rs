@@ -1,4 +1,4 @@
-use {Config};
+use Config;
 use std::collections::HashMap;
 use std::{env, fs, process};
 use regex::Regex;
@@ -10,7 +10,7 @@ use std;
 
 const SHELL: &'static str = "bash";
 
-pub struct Instance
+pub struct TestEvaluator
 {
     pub invocation: Invocation,
 }
@@ -27,10 +27,10 @@ struct Lines {
     current: usize,
 }
 
-impl Instance
+impl TestEvaluator
 {
     pub fn new(invocation: Invocation) -> Self {
-        Instance { invocation: invocation }
+        TestEvaluator { invocation: invocation }
     }
 
     pub fn run(self, test_file: &TestFile, config: &Config) -> TestResultKind {

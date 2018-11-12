@@ -1,7 +1,11 @@
 //! Routines for running tests.
 
-use {Instance, Config, print};
+mod test_evaluator;
+
+use {Config, print};
 use model::*;
+
+use self::test_evaluator::TestEvaluator;
 
 #[derive(Clone,Debug,PartialEq,Eq)]
 struct Context
@@ -66,8 +70,8 @@ pub fn test_file(test_file: &TestFile, config: &Config) -> TestResult {
         }
     }
 
-    for instance in create_instances(&test_file) {
-        let kind = instance.run(test_file, config);
+    for test_evaluator in create_test_evaluators(&test_file) {
+        let kind = test_evaluator.run(test_file, config);
 
         match kind {
             TestResultKind::Pass => continue,
@@ -92,10 +96,10 @@ pub fn test_file(test_file: &TestFile, config: &Config) -> TestResult {
     }
 }
 
-fn create_instances(test_file: &TestFile) -> Vec<Instance> {
+fn create_test_evaluators(test_file: &TestFile) -> Vec<TestEvaluator> {
     test_file.directives.iter().flat_map(|directive| {
         if let Command::Run(ref invocation) = directive.command {
-            Some(Instance::new(invocation.clone()))
+            Some(TestEvaluator::new(invocation.clone()))
         } else {
             None
         }

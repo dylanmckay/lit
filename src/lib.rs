@@ -16,7 +16,7 @@ mod config;
 mod errors;
 
 #[cfg(test)]
-mod unit_tests;
+mod lit_unit_tests;
 
 #[macro_use]
 extern crate error_chain;

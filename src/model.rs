@@ -102,3 +102,13 @@ impl fmt::Display for TextPattern {
     }
 }
 
+impl Directive
+{
+    pub fn new(command: Command, line: u32) -> Self {
+        Directive {
+            command: command,
+            line: line,
+        }
+    }
+}
+

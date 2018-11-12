@@ -67,16 +67,6 @@ impl Test
     }
 }
 
-impl Directive
-{
-    pub fn new(command: Command, line: u32) -> Self {
-        Directive {
-            command: command,
-            line: line,
-        }
-    }
-}
-
 impl Results
 {
     pub fn test_results(&self) -> ::std::slice::Iter<TestResult> {

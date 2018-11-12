@@ -3,12 +3,6 @@ use model::*;
 
 use std::collections::HashMap;
 
-#[derive(Debug)]
-pub struct Results
-{
-    pub test_results: Vec<TestResult>,
-}
-
 impl Test
 {
     pub fn run(&self, config: &Config) -> TestResult {
@@ -64,17 +58,6 @@ impl Test
 
     pub fn is_empty(&self) -> bool {
         self.directives.is_empty()
-    }
-}
-
-impl Results
-{
-    pub fn test_results(&self) -> ::std::slice::Iter<TestResult> {
-        self.test_results.iter()
-    }
-
-    pub fn iter(&self) -> ::std::slice::Iter<TestResult> {
-        self.test_results()
     }
 }
 

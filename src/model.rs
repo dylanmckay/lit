@@ -74,6 +74,12 @@ pub struct TestResult
     pub kind: TestResultKind,
 }
 
+#[derive(Debug)]
+pub struct Results
+{
+    pub test_results: Vec<TestResult>,
+}
+
 impl PartialEq for Command {
     fn eq(&self, other: &Command) -> bool {
         match *self {
@@ -109,6 +115,17 @@ impl Directive
             command: command,
             line: line,
         }
+    }
+}
+
+impl Results
+{
+    pub fn test_results(&self) -> ::std::slice::Iter<TestResult> {
+        self.test_results.iter()
+    }
+
+    pub fn iter(&self) -> ::std::slice::Iter<TestResult> {
+        self.test_results()
     }
 }
 

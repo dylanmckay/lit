@@ -1,7 +1,6 @@
 //! Routines for running tests.
 
 use {Config, print};
-use test::Results;
 use model::*;
 
 #[derive(Clone,Debug,PartialEq,Eq)]

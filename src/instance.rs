@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::{env, fs, process};
 use regex::Regex;
 
-use tool;
+use exec::tool;
 use std;
 
 const SHELL: &'static str = "bash";

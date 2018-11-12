@@ -1,6 +1,6 @@
 use {Instance, Config, Error};
 
-use tool;
+use exec::tool;
 
 use regex::Regex;
 use super::Matcher;

@@ -7,7 +7,7 @@ pub use self::errors::*;
 
 pub mod run;
 
-mod tool;
+mod exec;
 mod test;
 mod find_files;
 mod print;

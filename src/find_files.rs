@@ -1,3 +1,5 @@
+//! Functions for retrieving lists of files from disk.
+
 use Config;
 
 use std;

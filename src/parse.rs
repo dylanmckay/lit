@@ -53,18 +53,17 @@ pub fn invocation<'a,I>(words: I) -> Result<Invocation, String>
     Ok(Invocation { original_command })
 }
 
-// TODO: Rename Matcher to TextPattern
-pub fn text_pattern(s: &str) -> Matcher {
-    let mut components: Vec<Component> = vec![];
+pub fn text_pattern(s: &str) -> TextPattern {
+    let mut components: Vec<PatternComponent> = vec![];
     let mut chars = s.chars().peekable();
 
     let mut current_text = vec![];
 
     loop {
-        let complete_text = |current_text: &mut Vec<char>, components: &mut Vec<Component>| {
+        let complete_text = |current_text: &mut Vec<char>, components: &mut Vec<PatternComponent>| {
             let text = mem::replace(current_text, Vec::new())
                 .into_iter().collect();
-            components.push(Component::Text(text));
+            components.push(PatternComponent::Text(text));
         };
 
         match (chars.next(), chars.peek().cloned()) {
@@ -77,7 +76,7 @@ pub fn text_pattern(s: &str) -> Matcher {
                                         .take_while(|c| c.is_alphanumeric())
                                         .collect();
                 chars.nth(name.len() - 1); // Skip the variable name.
-                components.push(Component::Variable(name));
+                components.push(PatternComponent::Variable(name));
             },
             // Named or unnamed regex.
             (Some('['), Some('[')) => {
@@ -124,8 +123,8 @@ pub fn text_pattern(s: &str) -> Matcher {
                 };
 
                 match name {
-                    Some(name) => components.push(Component::NamedRegex { name: name.to_owned(), regex: regex.to_owned() }),
-                    None => components.push(Component::Regex(regex.to_owned())),
+                    Some(name) => components.push(PatternComponent::NamedRegex { name: name.to_owned(), regex: regex.to_owned() }),
+                    None => components.push(PatternComponent::Regex(regex.to_owned())),
                 }
 
             },
@@ -139,7 +138,7 @@ pub fn text_pattern(s: &str) -> Matcher {
         }
     }
 
-    Matcher { components: components }
+    TextPattern { components: components }
 }
 
 /// Parses a possible directive, if a string defines one.
@@ -165,12 +164,12 @@ pub fn possible_directive(string: &str, line: u32)
             Some(Ok(Directive::new(Command::Run(invocation), line)))
         },
         "CHECK" => {
-            let matcher = self::text_pattern(after_command_str);
-            Some(Ok(Directive::new(Command::Check(matcher), line)))
+            let text_pattern = self::text_pattern(after_command_str);
+            Some(Ok(Directive::new(Command::Check(text_pattern), line)))
         },
         "CHECK-NEXT" => {
-            let matcher = self::text_pattern(after_command_str);
-            Some(Ok(Directive::new(Command::CheckNext(matcher), line)))
+            let text_pattern = self::text_pattern(after_command_str);
+            Some(Ok(Directive::new(Command::CheckNext(text_pattern), line)))
         },
         "XFAIL" => {
             Some(Ok(Directive::new(Command::XFail, line)))
@@ -188,31 +187,31 @@ mod test {
 
     #[test]
     fn parses_single_text() {
-        assert_eq!(matcher("hello world"),
+        assert_eq!(text_pattern("hello world"),
                    "hello world");
     }
 
     #[test]
     fn correctly_escapes_text() {
-        assert_eq!(matcher("hello()").as_str(),
+        assert_eq!(text_pattern("hello()").as_str(),
                    "hello\\(\\)");
     }
 
     #[test]
     fn correctly_picks_up_single_regex() {
-        assert_eq!(matcher("[[\\d]]").as_str(),
+        assert_eq!(text_pattern("[[\\d]]").as_str(),
                    "\\d");
     }
 
     #[test]
     fn correctly_picks_up_regex_between_text() {
-        assert_eq!(matcher("1[[\\d]]3").as_str(),
+        assert_eq!(text_pattern("1[[\\d]]3").as_str(),
                    "1\\d3");
     }
 
     #[test]
     fn correctly_picks_up_named_regex() {
-        assert_eq!(matcher("[[num:\\d]]").as_str(),
+        assert_eq!(text_pattern("[[num:\\d]]").as_str(),
                    "(?P<num>\\d)");
     }
 }

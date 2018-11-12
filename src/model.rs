@@ -32,21 +32,21 @@ pub enum Command
     /// Run an external tool.
     Run(Invocation),
     /// Verify that the output text matches an expression.
-    Check(Matcher),
+    Check(TextPattern),
     /// Verify that the very next output line matches an expression.
-    CheckNext(Matcher),
+    CheckNext(TextPattern),
     /// Mark the test as supposed to fail.
     XFail,
 }
 
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub struct Matcher {
-    pub components: Vec<Component>,
+pub struct TextPattern {
+    pub components: Vec<PatternComponent>,
 }
 
-/// A component in a matcher.
+/// A component in a text pattern.
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub enum Component {
+pub enum PatternComponent {
     Text(String),
     Variable(String),
     Regex(String),
@@ -87,14 +87,14 @@ impl PartialEq for Command {
 
 impl Eq for Command { }
 
-impl fmt::Display for Matcher {
+impl fmt::Display for TextPattern {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         for component in self.components.iter() {
             match *component {
-                Component::Text(ref text) => write!(fmt, "{}", text)?,
-                Component::Variable(ref name) => write!(fmt, "$${}", name)?,
-                Component::Regex(ref regex) => write!(fmt, "[[{}]]", regex)?,
-                Component::NamedRegex { ref name, ref regex } => write!(fmt, "[[{}:{}]]", name, regex)?,
+                PatternComponent::Text(ref text) => write!(fmt, "{}", text)?,
+                PatternComponent::Variable(ref name) => write!(fmt, "$${}", name)?,
+                PatternComponent::Regex(ref regex) => write!(fmt, "[[{}]]", regex)?,
+                PatternComponent::NamedRegex { ref name, ref regex } => write!(fmt, "[[{}:{}]]", name, regex)?,
             }
         }
 

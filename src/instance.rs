@@ -124,8 +124,8 @@ impl Checker
                 // Some tests can be marked as expected failures.
                 Command::XFail => *expect_test_pass = false,
                 Command::Run(..) => (),
-                Command::Check(ref matcher) => {
-                    let regex = vars::resolve::text_pattern(&matcher, config, &mut self.variables);
+                Command::Check(ref text_pattern) => {
+                    let regex = vars::resolve::text_pattern(&text_pattern, config, &mut self.variables);
 
                     let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
                     let matched_line = self.lines.find(|l| regex.is_match(l));
@@ -135,13 +135,13 @@ impl Checker
                     } else {
                         let message = format_check_error(test,
                             directive,
-                            &format!("could not find match: '{}'", matcher),
+                            &format!("could not find match: '{}'", text_pattern),
                             &beginning_line);
                         return TestResultKind::Fail { message, stderr: None };
                     }
                 },
-                Command::CheckNext(ref matcher) => {
-                    let regex = vars::resolve::text_pattern(&matcher, config, &mut self.variables);
+                Command::CheckNext(ref text_pattern) => {
+                    let regex = vars::resolve::text_pattern(&text_pattern, config, &mut self.variables);
 
                     if let Some(next_line) = self.lines.next() {
                         if regex.is_match(&next_line) {
@@ -149,7 +149,7 @@ impl Checker
                         } else {
                             let message = format_check_error(test,
                                 directive,
-                                &format!("could not find match: '{}'", matcher),
+                                &format!("could not find pattern: '{}'", text_pattern),
                                 &next_line);
 
                             return TestResultKind::Fail { message, stderr: None };

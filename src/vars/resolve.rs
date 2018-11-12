@@ -21,17 +21,17 @@ struct ConstantSpan {
     end: usize,
 }
 
-pub fn text_pattern(pattern: &Matcher, config: &Config,
+pub fn text_pattern(pattern: &TextPattern, config: &Config,
                     variables: &mut Variables) -> Regex {
     let regex_parts: Vec<_> = pattern.components.iter().map(|comp| match *comp {
-        Component::Text(ref text) => regex::escape(text),
-        Component::Variable(ref name) => {
+        PatternComponent::Text(ref text) => regex::escape(text),
+        PatternComponent::Variable(ref name) => {
             // FIXME: proper error handling.
             let value = config.lookup_variable(name, variables);
             value.to_owned()
         },
-        Component::Regex(ref regex) => regex.clone(),
-        Component::NamedRegex { ref name, ref regex } => format!("(?P<{}>{})", name, regex),
+        PatternComponent::Regex(ref regex) => regex.clone(),
+        PatternComponent::NamedRegex { ref name, ref regex } => format!("(?P<{}>{})", name, regex),
     }).collect();
     Regex::new(&regex_parts.join("")).expect("generated invalid line match regex")
 }
@@ -99,8 +99,8 @@ mod test {
         use Config;
 
         fn resolve(s: &str) -> String {
-            let matcher = parse::text_pattern(s);
-            vars::resolve::text_pattern(&matcher, &Config::default(), &mut VARIABLES.clone()).as_str().to_owned()
+            let text_pattern = parse::text_pattern(s);
+            vars::resolve::text_pattern(&text_pattern, &Config::default(), &mut VARIABLES.clone()).as_str().to_owned()
         }
 
         #[test]
@@ -123,7 +123,6 @@ mod test {
     }
 
     mod invocation {
-        use super::*;
         use {parse, vars, Config};
         use std::collections::HashMap;
 

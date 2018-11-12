@@ -2,15 +2,12 @@ pub use self::config::Config;
 
 pub use self::errors::*;
 
-pub mod run;
-pub mod vars;
-
-mod model;
-mod parse;
-
-mod print;
 mod config;
 mod errors;
+mod model;
+mod parse;
+pub mod run;
+pub mod vars;
 
 #[cfg(test)]
 mod lit_unit_tests;
@@ -23,3 +20,4 @@ extern crate regex;
 extern crate tempfile;
 extern crate term;
 extern crate walkdir;
+

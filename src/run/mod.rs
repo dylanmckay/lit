@@ -1,9 +1,10 @@
 //! Routines for running tests.
 
 mod find_files;
+mod print;
 mod test_evaluator;
 
-use {Config, print};
+use Config;
 use model::*;
 
 use self::test_evaluator::TestEvaluator;
@@ -109,7 +110,8 @@ fn create_test_evaluators(test_file: &TestFile) -> Vec<TestEvaluator> {
 mod util
 {
     use model::*;
-    use {parse, print};
+    use super::print;
+    use parse;
 
     use std::error::Error;
     use std::io::Read;

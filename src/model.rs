@@ -1,4 +1,5 @@
 use Error;
+use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
 
@@ -126,6 +127,20 @@ impl Results
 
     pub fn iter(&self) -> ::std::slice::Iter<TestResult> {
         self.test_results()
+    }
+}
+
+impl Test
+{
+    /// Extra test-specific variables.
+    pub fn variables(&self) -> HashMap<String, String> {
+        let mut v = HashMap::new();
+        v.insert("file".to_owned(), self.path.to_str().unwrap().to_owned());
+        v
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.directives.is_empty()
     }
 }
 

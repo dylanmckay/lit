@@ -9,7 +9,6 @@ pub mod vars;
 mod model;
 mod parse;
 
-mod test;
 mod find_files;
 mod print;
 mod instance;

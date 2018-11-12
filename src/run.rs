@@ -1,6 +1,6 @@
 //! Routines for running tests.
 
-use {Config, print};
+use {Instance, Config, print};
 use model::*;
 
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -58,6 +58,51 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
     if !has_failure { Ok(()) } else { Err(()) }
 }
 
+pub fn test(test: &Test, config: &Config) -> TestResult {
+    if test.is_empty() {
+        return TestResult {
+            path: test.path.clone(),
+            kind: TestResultKind::Skip,
+        }
+    }
+
+    for instance in create_instances(&test) {
+        let kind = instance.run(test, config);
+
+        match kind {
+            TestResultKind::Pass => continue,
+            TestResultKind::Skip => {
+                return TestResult {
+                    path: test.path.clone(),
+                    kind: TestResultKind::Pass,
+                }
+            },
+            _ => {
+                return TestResult {
+                    path: test.path.clone(),
+                    kind,
+                }
+            },
+        }
+    }
+
+    TestResult {
+        path: test.path.clone(),
+        kind: TestResultKind::Pass,
+    }
+}
+
+fn create_instances(test: &Test) -> Vec<Instance> {
+    test.directives.iter().flat_map(|directive| {
+        if let Command::Run(ref invocation) = directive.command {
+            Some(Instance::new(invocation.clone()))
+        } else {
+            None
+        }
+    }).collect()
+}
+
+
 mod util
 {
     use model::*;
@@ -114,7 +159,7 @@ impl Context
 
     pub fn run(&self, config: &Config) -> Results {
         let test_results = self.tests.iter().map(|test| {
-            test.run(config)
+            self::test(test, config)
         }).collect();
 
         Results {

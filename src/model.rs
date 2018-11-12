@@ -119,6 +119,18 @@ impl Directive
     }
 }
 
+impl TestResultKind {
+    /// Checks if the result is considered an error.
+    pub fn is_erroneous(&self) -> bool {
+        use self::TestResultKind::*;
+
+        match *self {
+            UnexpectedPass | Error(..) | Fail { .. } => true,
+            Pass | Skip | ExpectedFailure => false,
+        }
+    }
+}
+
 impl Results
 {
     pub fn test_results(&self) -> ::std::slice::Iter<TestResult> {

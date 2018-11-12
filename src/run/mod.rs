@@ -57,9 +57,7 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
         print::result(result)
     }
 
-    let has_failure = results.iter().any(|r| {
-        if let TestResultKind::Fail { .. } = r.kind { true } else { false }
-    });
+    let has_failure = results.iter().any(|r| r.kind.is_erroneous());
     if !has_failure { Ok(()) } else { Err(()) }
 }
 

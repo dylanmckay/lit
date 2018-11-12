@@ -1,7 +1,14 @@
 use {TestResult,TestResultKind};
 
-use std;
+use std::io;
+use std::io::prelude::*;
 use term;
+
+pub enum StdStream {
+    Out,
+    Err,
+
+}
 
 pub fn result(result: &TestResult) {
     match result.kind {
@@ -46,50 +53,67 @@ pub fn result(result: &TestResult) {
 
 pub fn line() {
     with("\n",
-         term::stdout().unwrap(),
+         StdStream::Out,
          term::color::WHITE);
 }
 
 pub fn text<S>(msg: S)
     where S: Into<String> {
     with(format!("{}\n", msg.into()),
-         term::stdout().unwrap(),
+         StdStream::Out,
          term::color::WHITE);
 }
 
 pub fn success<S>(msg: S)
     where S: Into<String> {
     with(format!("{}\n", msg.into()),
-         term::stdout().unwrap(),
+         StdStream::Out,
          term::color::GREEN);
 }
 
 pub fn warning<S>(msg: S)
     where S: Into<String> {
     with(format!("{}\n", msg.into()),
-         term::stderr().unwrap(),
+         StdStream::Err,
          term::color::YELLOW);
 }
 
 pub fn error<S>(msg: S)
     where S: Into<String> {
     with(format!("{}\n", msg.into()),
-         term::stderr().unwrap(),
+         StdStream::Err,
          term::color::RED);
 }
 
 pub fn failure<S>(msg: S)
     where S: Into<String> {
     with(format!("{}\n", msg.into()),
-         term::stderr().unwrap(),
+         StdStream::Err,
          term::color::MAGENTA);
 }
 
-pub fn with<S,W>(msg: S,
-                 mut term: Box<term::Terminal<Output=W>>,
-                 color: term::color::Color)
-    where S: Into<String>, W: std::io::Write {
+pub fn with<S>(msg: S,
+               stream: StdStream,
+               color: term::color::Color)
+    where S: Into<String> {
 
-    term.fg(color).unwrap();
-    write!(term, "{}", msg.into()).unwrap();
+    match stream {
+        StdStream::Out => {
+            if let Some(color_term) = term::stdout().as_mut() {
+                color_term.fg(color).unwrap();
+                write!(color_term, "{}", msg.into()).unwrap();
+            } else {
+                write!(io::stdout(), "{}", msg.into()).unwrap();
+            }
+        },
+        StdStream::Err => {
+            if let Some(color_term) = term::stderr().as_mut() {
+                color_term.fg(color).unwrap();
+                write!(color_term, "{}", msg.into()).unwrap();
+            } else {
+                write!(io::stderr(), "{}", msg.into()).unwrap();
+            }
+        },
+    }
 }
+

@@ -13,7 +13,7 @@ pub struct Invocation
 
 // TODO: rename to TestFile
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub struct Test
+pub struct TestFile
 {
     /// The on-disk path to the test file.
     pub path: PathBuf,
@@ -130,7 +130,7 @@ impl Results
     }
 }
 
-impl Test
+impl TestFile
 {
     /// Extra test-specific variables.
     pub fn variables(&self) -> HashMap<String, String> {

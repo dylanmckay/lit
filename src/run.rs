@@ -7,7 +7,7 @@ use model::*;
 struct Context
 {
     pub exec_search_dirs: Vec<String>,
-    pub tests: Vec<Test>,
+    pub test_files: Vec<TestFile>,
 }
 
 /// Runs all tests according to a given config.
@@ -58,28 +58,28 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
     if !has_failure { Ok(()) } else { Err(()) }
 }
 
-pub fn test(test: &Test, config: &Config) -> TestResult {
-    if test.is_empty() {
+pub fn test_file(test_file: &TestFile, config: &Config) -> TestResult {
+    if test_file.is_empty() {
         return TestResult {
-            path: test.path.clone(),
+            path: test_file.path.clone(),
             kind: TestResultKind::Skip,
         }
     }
 
-    for instance in create_instances(&test) {
-        let kind = instance.run(test, config);
+    for instance in create_instances(&test_file) {
+        let kind = instance.run(test_file, config);
 
         match kind {
             TestResultKind::Pass => continue,
             TestResultKind::Skip => {
                 return TestResult {
-                    path: test.path.clone(),
+                    path: test_file.path.clone(),
                     kind: TestResultKind::Pass,
                 }
             },
             _ => {
                 return TestResult {
-                    path: test.path.clone(),
+                    path: test_file.path.clone(),
                     kind,
                 }
             },
@@ -87,13 +87,13 @@ pub fn test(test: &Test, config: &Config) -> TestResult {
     }
 
     TestResult {
-        path: test.path.clone(),
+        path: test_file.path.clone(),
         kind: TestResultKind::Pass,
     }
 }
 
-fn create_instances(test: &Test) -> Vec<Instance> {
-    test.directives.iter().flat_map(|directive| {
+fn create_instances(test_file: &TestFile) -> Vec<Instance> {
+    test_file.directives.iter().flat_map(|directive| {
         if let Command::Run(ref invocation) = directive.command {
             Some(Instance::new(invocation.clone()))
         } else {
@@ -122,7 +122,7 @@ mod util
         current_exec.parent().map(|p| p.to_str().unwrap().to_owned())
     }
 
-    pub fn parse_test(file_name: &str) -> Result<Test,String> {
+    pub fn parse_test(file_name: &str) -> Result<TestFile,String> {
         let mut text = String::new();
         open_file(file_name).read_to_string(&mut text).unwrap();
         parse::test_file(file_name, text.chars())
@@ -148,23 +148,21 @@ impl Context
     pub fn new() -> Self {
         Context {
             exec_search_dirs: Vec::new(),
-            tests: Vec::new(),
+            test_files: Vec::new(),
         }
     }
 
-    pub fn test(mut self, test: Test) -> Self {
-        self.tests.push(test);
+    pub fn test(mut self, test_file: TestFile) -> Self {
+        self.test_files.push(test_file);
         self
     }
 
     pub fn run(&self, config: &Config) -> Results {
-        let test_results = self.tests.iter().map(|test| {
-            self::test(test, config)
+        let test_results = self.test_files.iter().map(|test_file| {
+            self::test_file(test_file, config)
         }).collect();
 
-        Results {
-            test_results: test_results,
-        }
+        Results { test_results }
     }
 
     pub fn add_search_dir(&mut self, dir: String) {

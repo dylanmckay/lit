@@ -10,7 +10,7 @@ lazy_static! {
 }
 
 /// Parses a test file
-pub fn test_file<P,I>(path: P, chars: I) -> Result<Test, String>
+pub fn test_file<P,I>(path: P, chars: I) -> Result<TestFile, String>
     where P: AsRef<Path>, I: Iterator<Item=char> {
     let mut directives = Vec::new();
     let test_body: String = chars.collect();
@@ -31,7 +31,7 @@ pub fn test_file<P,I>(path: P, chars: I) -> Result<Test, String>
         }
     }
 
-    Ok(Test {
+    Ok(TestFile {
         path,
         directives: directives,
     })

@@ -33,8 +33,8 @@ impl Instance
         Instance { invocation: invocation }
     }
 
-    pub fn run(self, test: &Test, config: &Config) -> TestResultKind {
-        let mut cmd = self.build_command(test, config);
+    pub fn run(self, test_file: &TestFile, config: &Config) -> TestResultKind {
+        let mut cmd = self.build_command(test_file, config);
 
         let output = match cmd.output() {
             Ok(o) => o,
@@ -63,14 +63,14 @@ impl Instance
         let stdout_lines: Vec<_> = stdout.lines().map(|l| l.trim().to_owned()).collect();
         let stdout: String = stdout_lines.join("\n");
 
-        Checker::new(stdout).run(config, &test)
+        Checker::new(stdout).run(config, &test_file)
     }
 
     pub fn build_command(&self,
-                         test: &Test,
+                         test_file: &TestFile,
                          config: &Config) -> process::Command {
         let mut variables = config.constants.clone();
-        variables.extend(test.variables());
+        variables.extend(test_file.variables());
 
         let command_line: String = vars::resolve::invocation(&self.invocation, &config, &mut variables);
 
@@ -97,9 +97,9 @@ impl Checker
         }
     }
 
-    fn run(&mut self, config: &Config, test: &Test) -> TestResultKind {
+    fn run(&mut self, config: &Config, test_file: &TestFile) -> TestResultKind {
         let mut expect_test_pass = true;
-        let result = self.run_expecting_pass(config, test, &mut expect_test_pass);
+        let result = self.run_expecting_pass(config, test_file, &mut expect_test_pass);
 
         if expect_test_pass {
             result
@@ -117,9 +117,9 @@ impl Checker
 
     fn run_expecting_pass(&mut self,
                 config: &Config,
-                test: &Test,
+                test_file: &TestFile,
                 expect_test_pass: &mut bool) -> TestResultKind {
-        for directive in test.directives.iter() {
+        for directive in test_file.directives.iter() {
             match directive.command {
                 // Some tests can be marked as expected failures.
                 Command::XFail => *expect_test_pass = false,
@@ -133,7 +133,7 @@ impl Checker
                     if let Some(matched_line) = matched_line {
                         self.process_captures(&regex, &matched_line);
                     } else {
-                        let message = format_check_error(test,
+                        let message = format_check_error(test_file,
                             directive,
                             &format!("could not find match: '{}'", text_pattern),
                             &beginning_line);
@@ -147,7 +147,7 @@ impl Checker
                         if regex.is_match(&next_line) {
                             self.process_captures(&regex, &next_line);
                         } else {
-                            let message = format_check_error(test,
+                            let message = format_check_error(test_file,
                                 directive,
                                 &format!("could not find pattern: '{}'", text_pattern),
                                 &next_line);
@@ -239,18 +239,18 @@ impl From<String> for Lines
     }
 }
 
-fn format_check_error(test: &Test,
+fn format_check_error(test_file: &TestFile,
                       directive: &Directive,
                       msg: &str,
                       next_line: &str) -> String {
-    self::format_error(test, directive, msg, next_line)
+    self::format_error(test_file, directive, msg, next_line)
 }
 
-fn format_error(test: &Test,
+fn format_error(test_file: &TestFile,
                 directive: &Directive,
                 msg: &str,
                 next_line: &str) -> String {
-    format!("{}:{}: {}\nnext line: '{}'", test.path.display(), directive.line, msg, next_line)
+    format!("{}:{}: {}\nnext line: '{}'", test_file.path.display(), directive.line, msg, next_line)
 }
 
 #[cfg(test)]

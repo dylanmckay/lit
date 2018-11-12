@@ -145,7 +145,8 @@ pub fn text_pattern(s: &str) -> Matcher {
 /// Parses a possible directive, if a string defines one.
 ///
 /// Returns `None` if no directive is specified.
-pub fn possible_directive(string: &str, line: u32) -> Option<Result<Self,String>> {
+pub fn possible_directive(string: &str, line: u32)
+    -> Option<Result<Directive, String>> {
     if !DIRECTIVE_REGEX.is_match(string) { return None; }
 
     let captures = DIRECTIVE_REGEX.captures(string).unwrap();
@@ -179,3 +180,40 @@ pub fn possible_directive(string: &str, line: u32) -> Option<Result<Self,String>
         },
     }
 }
+
+#[cfg(tes)]
+mod test {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn parses_single_text() {
+        assert_eq!(matcher("hello world"),
+                   "hello world");
+    }
+
+    #[test]
+    fn correctly_escapes_text() {
+        assert_eq!(matcher("hello()").as_str(),
+                   "hello\\(\\)");
+    }
+
+    #[test]
+    fn correctly_picks_up_single_regex() {
+        assert_eq!(matcher("[[\\d]]").as_str(),
+                   "\\d");
+    }
+
+    #[test]
+    fn correctly_picks_up_regex_between_text() {
+        assert_eq!(matcher("1[[\\d]]3").as_str(),
+                   "1\\d3");
+    }
+
+    #[test]
+    fn correctly_picks_up_named_regex() {
+        assert_eq!(matcher("[[num:\\d]]").as_str(),
+                   "(?P<num>\\d)");
+    }
+}
+

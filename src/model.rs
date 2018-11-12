@@ -71,6 +71,7 @@ pub enum TestResultKind
 pub struct TestResult
 {
     pub path: PathBuf,
+    pub kind: TestResultKind,
 }
 
 impl PartialEq for Command {

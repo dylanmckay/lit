@@ -5,8 +5,8 @@ use self::instance::Instance;
 pub use self::errors::*;
 
 pub mod run;
+pub mod vars;
 
-mod exec;
 mod model;
 mod parse;
 
@@ -15,7 +15,6 @@ mod find_files;
 mod print;
 mod instance;
 mod config;
-mod matcher;
 mod errors;
 
 #[cfg(test)]

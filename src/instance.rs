@@ -1,8 +1,10 @@
-use {Config, TestResultKind};
+use {Config};
 use std::collections::HashMap;
 use std::{env, fs, process};
 use regex::Regex;
 use model::*;
+use parse;
+use vars;
 
 use std;
 
@@ -70,7 +72,7 @@ impl Instance
         let mut variables = config.constants.clone();
         variables.extend(test.variables());
 
-        let command_line = self.invocation.resolve(&config, &mut variables);
+        let command_line: String = vars::resolve::invocation(&self.invocation, &config, &mut variables);
 
         let mut cmd = process::Command::new("bash");
         cmd.args(&["-c", &command_line]);
@@ -123,7 +125,7 @@ impl Checker
                 Command::XFail => *expect_test_pass = false,
                 Command::Run(..) => (),
                 Command::Check(ref matcher) => {
-                    let regex = matcher.resolve(config, &mut self.variables);
+                    let regex = vars::resolve::text_pattern(&matcher, config, &mut self.variables);
 
                     let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
                     let matched_line = self.lines.find(|l| regex.is_match(l));
@@ -139,7 +141,7 @@ impl Checker
                     }
                 },
                 Command::CheckNext(ref matcher) => {
-                    let regex = matcher.resolve(config, &mut self.variables);
+                    let regex = vars::resolve::text_pattern(&matcher, config, &mut self.variables);
 
                     if let Some(next_line) = self.lines.next() {
                         if regex.is_match(&next_line) {
@@ -211,7 +213,7 @@ impl Lines {
         if self.current > self.lines.len() { return None; }
 
         self.lines[self.current..].iter()
-            .position(|l| !Directive::is_directive(l))
+            .position(|l| parse::possible_directive(l, 0).is_none())
             .map(|offset| self.current + offset)
     }
 }

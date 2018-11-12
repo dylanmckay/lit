@@ -82,12 +82,6 @@ impl Directive
             line: line,
         }
     }
-
-    /// Checks if a strint is a directive.
-    pub fn is_directive(string: &str) -> bool {
-        DIRECTIVE_REGEX.is_match(string)
-    }
-
 }
 
 impl Context
@@ -127,20 +121,6 @@ impl Results
 
     pub fn iter(&self) -> ::std::slice::Iter<TestResult> {
         self.test_results()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    fn parse(line: &str) -> Result<Directive, String> {
-        Directive::maybe_parse(line, 0).unwrap()
-    }
-
-    #[test]
-    fn can_parse_run() {
-        let _d = parse("; RUN: foo").unwrap();
     }
 }
 

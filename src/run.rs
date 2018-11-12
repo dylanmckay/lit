@@ -53,8 +53,8 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
 
 mod util
 {
-    use Test;
-    use print;
+    use model::*;
+    use {parse, print};
 
     use std::error::Error;
     use std::io::Read;
@@ -73,7 +73,7 @@ mod util
     pub fn parse_test(file_name: &str) -> Result<Test,String> {
         let mut text = String::new();
         open_file(file_name).read_to_string(&mut text).unwrap();
-        Test::parse(file_name, text.chars())
+        parse::test_file(file_name, text.chars())
     }
 
     fn open_file(path: &str) -> std::fs::File {

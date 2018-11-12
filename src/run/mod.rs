@@ -53,10 +53,24 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
     }
 
     let results = context.run(&config);
+    let erroneous_results = results.iter().filter(|r| r.kind.is_erroneous());
 
     for result in results.iter() {
-        print::result(result)
+        print::result(result, true)
     }
+
+    if erroneous_results.clone().next().is_some() {
+        print::text("");
+        print::text("Failing tests:");
+        print::text("");
+
+        for result in erroneous_results {
+            print::result(result, false);
+        }
+    }
+
+    // Cargo test will continue with whatever color we leave.
+    print::reset_colors();
 
     let has_failure = results.iter().any(|r| r.kind.is_erroneous());
     if !has_failure { Ok(()) } else { Err(()) }

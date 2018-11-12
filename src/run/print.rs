@@ -4,13 +4,14 @@ use std::io;
 use std::io::prelude::*;
 use term;
 
+#[derive(Copy, Clone)]
 pub enum StdStream {
     Out,
     Err,
 
 }
 
-pub fn result(result: &TestResult) {
+pub fn result(result: &TestResult, verbose: bool) {
     match result.kind {
         TestResultKind::Pass => {
             success(format!("PASS :: {}", result.path.display()));
@@ -26,36 +27,41 @@ pub fn result(result: &TestResult) {
             line();
         },
         TestResultKind::Error(ref e) => {
-            line();
+            if verbose { line(); }
 
             error(format!("ERROR :: {}", result.path.display()));
-            text(e.to_string());
 
-            line();
+            if verbose {
+                text(e.to_string());
+
+                line();
+            }
         }
         TestResultKind::Fail { ref message, ref stderr } => {
-            line();
+            if verbose { line(); }
 
             failure(format!("FAIL :: {}", result.path.display()));
-            text(message.clone());
 
-            if let Some(stderr) = stderr.as_ref() {
-                // Only print stderr if there was output
-                if !stderr.is_empty() {
-                    line();
-                    text("stderr:");
-                    line();
-                    text(stderr.clone());
+            if verbose {
+                text(message.clone());
+
+                if let Some(stderr) = stderr.as_ref() {
+                    // Only print stderr if there was output
+                    if !stderr.is_empty() {
+                        line();
+                        text("stderr:");
+                        line();
+                        text(stderr.clone());
+                    }
                 }
+                line();
             }
-            line();
         },
         TestResultKind::ExpectedFailure => {
             warning(format!("XFAIL :: {}", result.path.display()));
         },
     }
 }
-
 
 pub fn line() {
     with("\n",
@@ -120,6 +126,12 @@ pub fn with<S>(msg: S,
                 write!(io::stderr(), "{}", msg.into()).unwrap();
             }
         },
+    }
+}
+
+pub fn reset_colors() {
+    for stream in [StdStream::Out, StdStream::Err].iter().cloned() {
+        with("", stream, term::color::WHITE);
     }
 }
 

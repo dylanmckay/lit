@@ -9,7 +9,7 @@ pub mod run;
 
 mod tool;
 mod test;
-mod find;
+mod find_files;
 mod print;
 mod instance;
 mod config;

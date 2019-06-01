@@ -28,6 +28,11 @@ pub fn text_pattern(pattern: &TextPattern, config: &Config,
         PatternComponent::Variable(ref name) => {
             // FIXME: proper error handling.
             let value = config.lookup_variable(name, variables);
+
+            if config.dump_variable_resolution {
+                eprintln!("[info] resolving '@{}' to '{}' in {:?}", name, value, pattern);
+            }
+
             value.to_owned()
         },
         PatternComponent::Regex(ref regex) => regex.clone(),
@@ -57,7 +62,11 @@ pub fn invocation(invocation: &Invocation,
         if let Some(next_span) = constant_spans.next() {
             assert!(index <= next_span.start, "went too far");
 
-            let constant_value = config.lookup_variable(&next_span.name, constants);
+            let value = config.lookup_variable(&next_span.name, constants);
+
+            if config.dump_variable_resolution {
+                eprintln!("[info] resolving '@{}' to '{}' in {:?}", next_span.name, value, _cmd);
+            }
 
             // Check if there is some text between us and the regex.
             if next_span.start != index {
@@ -68,7 +77,7 @@ pub fn invocation(invocation: &Invocation,
             }
 
             assert_eq!(index, next_span.start, "we should be up to the regex");
-            command_line += &constant_value;
+            command_line += &value;
             index += next_span.name.len() + 1; // Skip the `@` and the name.
         } else {
             // Almost finished, just copy over the rest of the text.

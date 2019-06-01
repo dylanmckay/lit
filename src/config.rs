@@ -28,6 +28,8 @@ pub struct Config
     /// This includes temporary files created by using `@tempfile`
     /// variables.
     pub cleanup_temporary_files: bool,
+    /// Whether verbose information about resolved variables should be printed to stderr.
+    pub dump_variable_resolution: bool,
 }
 
 /// A function which can dynamically define newly used variables in a test.
@@ -99,6 +101,7 @@ impl Default for Config
             constants: HashMap::new(),
             variable_lookup: Config::DEFAULT_VARIABLE_LOOKUP,
             cleanup_temporary_files: true,
+            dump_variable_resolution: false,
         }
     }
 }

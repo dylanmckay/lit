@@ -127,7 +127,6 @@ mod util
     use super::print;
     use parse;
 
-    use std::error::Error;
     use std::io::Read;
     use std;
 
@@ -151,7 +150,7 @@ mod util
         match std::fs::File::open(path) {
             Ok(f) => f,
             Err(e) => abort(format!("could not open {}: {}",
-                                    path, e.description())),
+                                    path, e.to_string())),
         }
     }
     pub fn abort<S>(msg: S) -> !

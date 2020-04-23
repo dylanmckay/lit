@@ -36,7 +36,7 @@ pub fn in_path(path: &str,
 
 fn tests_in_dir(path: &str,
                 config: &Config) -> Result<Vec<String>,String> {
-    let tests = try!(files_in_dir(path)).into_iter()
+    let tests = files_in_dir(path)?.into_iter()
                      .filter(|f| {
                          let path = std::path::Path::new(f);
                          path.extension().map(|ext| config.is_extension_supported(ext.to_str().unwrap())).unwrap_or(false)

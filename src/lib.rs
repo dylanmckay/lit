@@ -16,8 +16,3 @@ mod lit_unit_tests;
 extern crate error_chain;
 #[macro_use]
 extern crate lazy_static;
-extern crate regex;
-extern crate tempfile;
-extern crate term;
-extern crate walkdir;
-

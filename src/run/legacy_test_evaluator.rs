@@ -155,7 +155,7 @@ impl Checker
                         }
                     } else {
                         return TestResultKind::Fail {
-                            message: format!("check-next reached the end of file"),
+                            message: format!("check-next reached the end of file unexpectedly"),
                             stderr: None,
                         };
                     }

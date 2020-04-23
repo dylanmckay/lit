@@ -2,12 +2,10 @@
 
 mod find_files;
 mod print;
-mod test_evaluator;
+mod legacy_test_evaluator;
 
 use crate::Config;
 use crate::model::*;
-
-use self::test_evaluator::TestEvaluator;
 
 #[derive(Clone,Debug,PartialEq,Eq)]
 struct Context
@@ -110,10 +108,10 @@ pub fn test_file(test_file: &TestFile, config: &Config) -> TestResult {
     }
 }
 
-fn create_test_evaluators(test_file: &TestFile) -> Vec<TestEvaluator> {
+fn create_test_evaluators(test_file: &TestFile) -> Vec<legacy_test_evaluator::TestEvaluator> {
     test_file.directives.iter().flat_map(|directive| {
         if let Command::Run(ref invocation) = directive.command {
-            Some(TestEvaluator::new(invocation.clone()))
+            Some(legacy_test_evaluator::TestEvaluator::new(invocation.clone()))
         } else {
             None
         }

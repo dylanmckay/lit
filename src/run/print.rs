@@ -1,4 +1,4 @@
-use model::*;
+use crate::model::*;
 
 use std::io;
 use std::io::prelude::*;

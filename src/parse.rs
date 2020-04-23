@@ -1,4 +1,4 @@
-use model::*;
+use crate::model::*;
 
 use regex::Regex;
 use std::mem;

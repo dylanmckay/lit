@@ -2,6 +2,7 @@
 name = "lit"
 version = "0.3.4"
 authors = ["Dylan McKay <me@dylanmckay.io>"]
+edition = "2018"
 
 description = "Integrated testing tool, inspired by LLVM's 'lit' testing script"
 documentation = "https://docs.rs/lit"

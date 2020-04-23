@@ -1,8 +1,8 @@
 //! Utilities for resolving/substituting variables within different types.
 
-use model::*;
-use vars::Variables;
-use Config;
+use crate::model::*;
+use crate::vars::Variables;
+use crate::Config;
 
 use regex::Regex;
 
@@ -104,8 +104,8 @@ mod test {
 
     mod text_pattern {
         use super::*;
-        use {parse, vars};
-        use Config;
+        use crate::{parse, vars};
+        use crate::Config;
 
         fn resolve(s: &str) -> String {
             let text_pattern = parse::text_pattern(s);
@@ -132,7 +132,7 @@ mod test {
     }
 
     mod invocation {
-        use {parse, vars, Config};
+        use crate::{parse, vars, Config};
         use std::collections::HashMap;
 
         lazy_static! {

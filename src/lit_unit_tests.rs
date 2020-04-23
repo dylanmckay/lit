@@ -1,4 +1,4 @@
-use run;
+use crate::run;
 
 const CRATE_PATH: &'static str = env!("CARGO_MANIFEST_DIR");
 

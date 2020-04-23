@@ -1,10 +1,9 @@
-use Config;
+use crate::Config;
 use std::collections::HashMap;
 use std::{env, fs, process};
 use regex::Regex;
-use model::*;
-use parse;
-use vars;
+use crate::model::*;
+use crate::{parse, vars};
 
 use std;
 

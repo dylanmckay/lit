@@ -1,6 +1,6 @@
 //! Functions for retrieving lists of files from disk.
 
-use Config;
+use crate::Config;
 
 use std;
 use walkdir::WalkDir;

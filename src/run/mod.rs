@@ -4,8 +4,8 @@ mod find_files;
 mod print;
 mod test_evaluator;
 
-use Config;
-use model::*;
+use crate::Config;
+use crate::model::*;
 
 use self::test_evaluator::TestEvaluator;
 
@@ -123,9 +123,9 @@ fn create_test_evaluators(test_file: &TestFile) -> Vec<TestEvaluator> {
 
 mod util
 {
-    use model::*;
+    use crate::model::*;
     use super::print;
-    use parse;
+    use crate::parse;
 
     use std::io::Read;
     use std;

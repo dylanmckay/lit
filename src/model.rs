@@ -1,4 +1,4 @@
-use Error;
+use crate::Error;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;

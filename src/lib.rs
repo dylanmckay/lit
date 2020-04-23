@@ -9,9 +9,6 @@ mod parse;
 pub mod run;
 pub mod vars;
 
-#[cfg(test)]
-mod lit_unit_tests;
-
 #[macro_use]
 extern crate error_chain;
 #[macro_use]

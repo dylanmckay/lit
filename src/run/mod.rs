@@ -14,6 +14,8 @@ use crate::model::*;
 /// # Parameters
 ///
 /// * `config_fn` is a function which sets up the test config.
+/// * `event_handler` is an object which presents the user interface to the user.
+///
 pub fn tests<F>(
     mut event_handler: impl EventHandler,
     config_fn: F,

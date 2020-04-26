@@ -2,7 +2,7 @@
 //! resources like OS processes.
 
 use crate::{
-    Config,
+    Config, Variables,
     model::{self, TestResultKind, TestFailReason, TextPattern},
     vars,
 };
@@ -125,6 +125,9 @@ impl TestRunState {
     pub fn unprocessed_output_stream(&self) -> &str {
         convert_bytes_to_str(self.unprocessed_output_bytes())
     }
+
+    /// Gets all variables in scope.
+    pub fn variables(&self) -> &Variables { &self.variables }
 
     fn eat_whitespace(&mut self) {
         if self.unprocessed_output_stream().chars().next().map(char::is_whitespace).unwrap_or(false) {

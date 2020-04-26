@@ -2,9 +2,10 @@ use crate::{
     model::{CommandKind, Invocation, TestFile, TestResultKind},
     Config,
     vars,
+    VariablesExt,
 };
 use self::state::TestRunState;
-use std::{collections::HashMap, env, process};
+use std::{collections::HashMap, env, fs, process};
 
 mod state;
 #[cfg(test)] mod state_tests;
@@ -50,6 +51,16 @@ pub fn execute_tests(test_file: &TestFile, config: &Config) -> TestResultKind {
                 CommandKind::Check(ref text_pattern) => test_run_state.check(text_pattern, config),
                 CommandKind::CheckNext(ref text_pattern) => test_run_state.check_next(text_pattern, config),
             };
+
+            if config.cleanup_temporary_files {
+                let tempfile_paths = test_run_state.variables().tempfile_paths();
+
+                for tempfile in tempfile_paths {
+                    // Ignore errors, these are tempfiles, they go away anyway.
+                    fs::remove_file(tempfile).ok();
+                }
+            }
+
 
             // Early return for failures.
             if test_result.is_erroneous() {

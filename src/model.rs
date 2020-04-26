@@ -1,7 +1,5 @@
-use crate::Error;
-use std::collections::HashMap;
-use std::fmt;
-use std::path::PathBuf;
+use crate::{Error, Variables};
+use std::{fmt, path::PathBuf};
 
 /// A tool invocation.
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -82,10 +80,13 @@ pub struct CheckFailureInfo {
     pub expected_pattern: TextPattern,
 }
 
+/// Results from executing a test.
 #[derive(Debug)]
 pub struct TestResult
 {
+    /// A path to the test.
     pub path: PathBuf,
+    /// The kind of result.
     pub kind: TestResultKind,
 }
 
@@ -162,22 +163,11 @@ impl CheckFailureInfo {
     }
 }
 
-impl Results
-{
-    pub fn test_results(&self) -> ::std::slice::Iter<TestResult> {
-        self.test_results.iter()
-    }
-
-    pub fn iter(&self) -> ::std::slice::Iter<TestResult> {
-        self.test_results()
-    }
-}
-
 impl TestFile
 {
     /// Extra test-specific variables.
-    pub fn variables(&self) -> HashMap<String, String> {
-        let mut v = HashMap::new();
+    pub fn variables(&self) -> Variables {
+        let mut v = Variables::new();
         v.insert("file".to_owned(), self.path.to_str().unwrap().to_owned());
         v
     }
@@ -188,10 +178,6 @@ impl TestFile
             CommandKind::Run(ref invocation) => Some(invocation),
             _ => None,
         })
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.commands.is_empty()
     }
 }
 

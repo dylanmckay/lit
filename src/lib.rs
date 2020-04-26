@@ -4,6 +4,7 @@ pub use self::errors::*;
 
 mod config;
 mod errors;
+pub mod event_handler;
 mod model;
 mod parse;
 pub mod run;

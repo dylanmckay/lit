@@ -8,7 +8,7 @@ const CRATE_PATH: &'static str = env!("CARGO_MANIFEST_DIR");
 fn integration_tests() {
     pretty_env_logger::init();
 
-    run::tests(|config| {
+    run::tests(lit::event_handler::Default::default(), |config| {
         config.add_search_path(format!("{}/integration-tests", CRATE_PATH));
         config.add_extension("txt");
     }).expect("unit test(s) failed");

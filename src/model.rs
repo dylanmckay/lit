@@ -54,8 +54,8 @@ pub enum PatternComponent {
     NamedRegex { name: String, regex: String },
 }
 
-#[must_use]
 #[derive(Debug)]
+#[must_use]
 pub enum TestResultKind
 {
     Pass,

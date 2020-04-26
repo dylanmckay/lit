@@ -1,18 +1,11 @@
 //! Routines for running tests.
 
 mod find_files;
-mod print;
+// mod print;
 mod test_evaluator;
 
-use crate::Config;
+use crate::{Config, event_handler::EventHandler};
 use crate::model::*;
-
-#[derive(Clone,Debug,PartialEq,Eq)]
-struct Context
-{
-    pub exec_search_dirs: Vec<String>,
-    pub test_files: Vec<TestFile>,
-}
 
 /// Runs all tests according to a given config.
 ///
@@ -21,7 +14,10 @@ struct Context
 /// # Parameters
 ///
 /// * `config_fn` is a function which sets up the test config.
-pub fn tests<F>(config_fn: F) -> Result<(), ()>
+pub fn tests<F>(
+    mut event_handler: impl EventHandler,
+    config_fn: F,
+    ) -> Result<(), ()>
     where F: Fn(&mut Config) {
     let mut config = Config::default();
     config_fn(&mut config);
@@ -36,64 +32,48 @@ pub fn tests<F>(config_fn: F) -> Result<(), ()>
     };
 
     if test_paths.is_empty() {
-        print::warning("could not find any tests");
+        event_handler.note_warning("could not find any tests");
         return Err(());
     }
 
-    let mut context = test_paths.into_iter().fold(Context::new(), |c,file| {
-        let test = util::parse_test(&file).unwrap();
-        c.test(test)
-    });
+    let mut has_failure = false;
+    for test_file_path in test_paths {
+        let test_file = util::parse_test(&test_file_path).unwrap();
+        let is_successful = self::single_file(&test_file, &mut event_handler, &config);
 
-    match util::crate_dir() {
-        Some(dir) => context.add_search_dir(dir),
-        None => print::warning("could not find tool directory"),
+        if !is_successful { has_failure = true; }
     }
 
-    let results = context.run(&config);
-    let erroneous_results = results.iter().filter(|r| r.kind.is_erroneous());
+    event_handler.on_test_suite_finished(!has_failure);
 
-    for result in results.iter() {
-        print::result(result, true)
-    }
-
-    if erroneous_results.clone().next().is_some() {
-        print::text("");
-        print::text("Failing tests:");
-        print::text("");
-
-        for result in erroneous_results {
-            print::result(result, false);
-        }
-    }
-
-    // Cargo test will continue with whatever color we leave.
-    print::reset_colors();
-
-    let has_failure = results.iter().any(|r| r.kind.is_erroneous());
     if !has_failure { Ok(()) } else { Err(()) }
 }
 
-pub fn test_file(test_file: &TestFile, config: &Config) -> TestResult {
-    if test_file.is_empty() {
-        return TestResult {
-            path: test_file.path.clone(),
-            kind: TestResultKind::Skip,
-        }
-    }
-
+/// Executes a single, parsed test file.
+///
+/// Returns `true` if all the tests in the file succeeded.
+fn single_file(
+    test_file: &TestFile,
+    event_handler: &mut dyn EventHandler,
+    config: &Config,
+    ) -> bool {
     let result_kind = test_evaluator::execute_tests(test_file, config);
 
-    TestResult {
+    let result = TestResult {
         path: test_file.path.clone(),
         kind: result_kind,
-    }
+    };
+
+    let is_erroneous = result.kind.is_erroneous();
+
+    event_handler.on_test_finished(result);
+
+    !is_erroneous
 }
 
 mod util
 {
     use crate::model::*;
-    use super::print;
     use crate::parse;
 
     use std::io::Read;
@@ -124,36 +104,8 @@ mod util
     }
     pub fn abort<S>(msg: S) -> !
         where S: Into<String> {
-        print::failure(format!("error: {}", msg.into()));
+        eprintln!("error: {}", msg.into());
 
         std::process::exit(1);
     }
 }
-
-impl Context
-{
-    pub fn new() -> Self {
-        Context {
-            exec_search_dirs: Vec::new(),
-            test_files: Vec::new(),
-        }
-    }
-
-    pub fn test(mut self, test_file: TestFile) -> Self {
-        self.test_files.push(test_file);
-        self
-    }
-
-    pub fn run(&self, config: &Config) -> Results {
-        let test_results = self.test_files.iter().map(|test_file| {
-            self::test_file(test_file, config)
-        }).collect();
-
-        Results { test_results }
-    }
-
-    pub fn add_search_dir(&mut self, dir: String) {
-        self.exec_search_dirs.push(dir);
-    }
-}
-

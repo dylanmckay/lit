@@ -88,7 +88,7 @@ impl Config
             }
         }
 
-        variables.get(name).expect("no constant with that name exists")
+        variables.get(name).expect(&format!("no variable with the name '{}' exists", name))
     }
 }
 

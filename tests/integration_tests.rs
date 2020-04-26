@@ -6,6 +6,8 @@ const CRATE_PATH: &'static str = env!("CARGO_MANIFEST_DIR");
 /// of the repository.
 #[test]
 fn integration_tests() {
+    pretty_env_logger::init();
+
     run::tests(|config| {
         config.add_search_path(format!("{}/integration-tests", CRATE_PATH));
         config.add_extension("txt");

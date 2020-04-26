@@ -22,7 +22,7 @@ pub fn result(result: &TestResult, verbose: bool) {
         TestResultKind::Skip => {
             line();
             warning(format!(
-                "SKIP :: {} (test does not contain any directives)",
+                "SKIP :: {} (test does not contain any test commands, perhaps you meant to add a 'CHECK'?)",
                      result.path.display()));
             line();
         },
@@ -37,24 +37,20 @@ pub fn result(result: &TestResult, verbose: bool) {
                 line();
             }
         }
-        TestResultKind::Fail { ref message, ref stderr } => {
+        TestResultKind::Fail { ref reason, ref hint } => {
             if verbose { line(); }
 
             failure(format!("FAIL :: {}", result.path.display()));
 
-            if verbose {
-                text(message.clone());
+            // FIXME: improve formatting
 
-                if let Some(stderr) = stderr.as_ref() {
-                    // Only print stderr if there was output
-                    if !stderr.is_empty() {
-                        line();
-                        text("stderr:");
-                        line();
-                        text(stderr.clone());
-                    }
-                }
+            if verbose {
+                text(format!("reason: {:?}", reason));
                 line();
+
+                if let Some(hint_text) = hint {
+                    text(format!("hint: {}", hint_text));
+                }
             }
         },
         TestResultKind::ExpectedFailure => {

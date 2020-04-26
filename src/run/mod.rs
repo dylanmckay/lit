@@ -2,7 +2,7 @@
 
 mod find_files;
 mod print;
-mod legacy_test_evaluator;
+mod test_evaluator;
 
 use crate::Config;
 use crate::model::*;
@@ -82,42 +82,13 @@ pub fn test_file(test_file: &TestFile, config: &Config) -> TestResult {
         }
     }
 
-    for test_evaluator in create_test_evaluators(&test_file) {
-        let kind = test_evaluator.run(test_file, config);
-
-        match kind {
-            TestResultKind::Pass => continue,
-            TestResultKind::Skip => {
-                return TestResult {
-                    path: test_file.path.clone(),
-                    kind: TestResultKind::Pass,
-                }
-            },
-            _ => {
-                return TestResult {
-                    path: test_file.path.clone(),
-                    kind,
-                }
-            },
-        }
-    }
+    let result_kind = test_evaluator::execute_tests(test_file, config);
 
     TestResult {
         path: test_file.path.clone(),
-        kind: TestResultKind::Pass,
+        kind: result_kind,
     }
 }
-
-fn create_test_evaluators(test_file: &TestFile) -> Vec<legacy_test_evaluator::TestEvaluator> {
-    test_file.directives.iter().flat_map(|directive| {
-        if let Command::Run(ref invocation) = directive.command {
-            Some(legacy_test_evaluator::TestEvaluator::new(invocation.clone()))
-        } else {
-            None
-        }
-    }).collect()
-}
-
 
 mod util
 {

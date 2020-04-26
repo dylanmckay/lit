@@ -32,7 +32,7 @@ impl TestEvaluator
         TestEvaluator { invocation: invocation }
     }
 
-    pub fn run(self, test_file: &TestFile, config: &Config) -> TestResultKind {
+    pub fn execute_tests(self, test_file: &TestFile, config: &Config) -> TestResultKind {
         let mut cmd = self.build_command(test_file, config);
 
         let output = match cmd.output() {
@@ -53,7 +53,7 @@ impl TestEvaluator
             return TestResultKind::Fail {
                 message: format!(
                     "exited with code {}", output.status.code().unwrap()),
-                stderr: Some(stderr),
+                reason: unimplemented!(),
             };
         }
 
@@ -65,7 +65,7 @@ impl TestEvaluator
         Checker::new(stdout).run(config, &test_file)
     }
 
-    pub fn build_command(&self,
+    fn build_command(&self,
                          test_file: &TestFile,
                          config: &Config) -> process::Command {
         let mut variables = config.constants.clone();
@@ -118,12 +118,12 @@ impl Checker
                 config: &Config,
                 test_file: &TestFile,
                 expect_test_pass: &mut bool) -> TestResultKind {
-        for directive in test_file.directives.iter() {
-            match directive.command {
+        for command in test_file.commands.iter() {
+            match command.kind {
                 // Some tests can be marked as expected failures.
-                Command::XFail => *expect_test_pass = false,
-                Command::Run(..) => (),
-                Command::Check(ref text_pattern) => {
+                CommandKind::XFail => *expect_test_pass = false,
+                CommandKind::Run(..) => (),
+                CommandKind::Check(ref text_pattern) => {
                     let regex = vars::resolve::text_pattern(&text_pattern, config, &mut self.variables);
 
                     let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
@@ -133,13 +133,13 @@ impl Checker
                         self.process_captures(&regex, &matched_line);
                     } else {
                         let message = format_check_error(test_file,
-                            directive,
+                            command,
                             &format!("could not find match: '{}'", text_pattern),
                             &beginning_line);
-                        return TestResultKind::Fail { message, stderr: None };
+                        return TestResultKind::Fail { message, reason: unimplemented!() };
                     }
                 },
-                Command::CheckNext(ref text_pattern) => {
+                CommandKind::CheckNext(ref text_pattern) => {
                     let regex = vars::resolve::text_pattern(&text_pattern, config, &mut self.variables);
 
                     if let Some(next_line) = self.lines.next() {
@@ -147,16 +147,16 @@ impl Checker
                             self.process_captures(&regex, &next_line);
                         } else {
                             let message = format_check_error(test_file,
-                                directive,
+                                command,
                                 &format!("could not find pattern: '{}'", text_pattern),
                                 &next_line);
 
-                            return TestResultKind::Fail { message, stderr: None };
+                            return TestResultKind::Fail { message, reason: unimplemented!() };
                         }
                     } else {
                         return TestResultKind::Fail {
                             message: format!("check-next reached the end of file unexpectedly"),
-                            stderr: None,
+                            reason: unimplemented!(),
                         };
                     }
                 },
@@ -212,7 +212,7 @@ impl Lines {
         if self.current > self.lines.len() { return None; }
 
         self.lines[self.current..].iter()
-            .position(|l| parse::possible_directive(l, 0).is_none())
+            .position(|l| parse::possible_command(l, 0).is_none())
             .map(|offset| self.current + offset)
     }
 }
@@ -239,17 +239,17 @@ impl From<String> for Lines
 }
 
 fn format_check_error(test_file: &TestFile,
-                      directive: &Directive,
+                      command: &Command,
                       msg: &str,
                       next_line: &str) -> String {
-    self::format_error(test_file, directive, msg, next_line)
+    self::format_error(test_file, command, msg, next_line)
 }
 
 fn format_error(test_file: &TestFile,
-                directive: &Directive,
+                command: &Command,
                 msg: &str,
                 next_line: &str) -> String {
-    format!("{}:{}: {}\nnext line: '{}'", test_file.path.display(), directive.line, msg, next_line)
+    format!("{}:{}: {}\nnext line: '{}'", test_file.path.display(), command.line_number, msg, next_line)
 }
 
 #[cfg(test)]
@@ -267,7 +267,7 @@ mod test {
     }
 
     #[test]
-    fn lines_ignores_directives() {
+    fn lines_ignores_commands() {
         assert_eq!(lines("; RUN: cat %file\nhello\n; CHECK: foo\nfoo"),
                    &["hello", "foo"]);
     }

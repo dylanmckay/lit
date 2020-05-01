@@ -1,4 +1,8 @@
 //! The type that stores testing configuration.
+//!
+//! Use the code in this module to tune testing behaviour.
+
+#[cfg(feature = "clap")] pub mod clap;
 
 use std::path::PathBuf;
 use std::collections::HashMap;

@@ -150,22 +150,40 @@ mod print {
                    stream: StdStream,
                    color: term::color::Color)
         where S: Into<String> {
+        set_color(Some(msg), stream, color);
+        reset_colors();
+    }
+
+    pub fn set_color<S>(msg: Option<S>,
+                        stream: StdStream,
+                        color: term::color::Color)
+        where S: Into<String> {
 
         match stream {
             StdStream::Out => {
                 if let Some(color_term) = term::stdout().as_mut() {
                     color_term.fg(color).unwrap();
-                    write!(color_term, "{}", msg.into()).unwrap();
+
+                    if let Some(msg) = msg {
+                        write!(color_term, "{}", msg.into()).unwrap();
+                    }
                 } else {
-                    write!(io::stdout(), "{}", msg.into()).unwrap();
+                    if let Some(msg) = msg {
+                        write!(io::stdout(), "{}", msg.into()).unwrap();
+                    }
                 }
             },
             StdStream::Err => {
                 if let Some(color_term) = term::stderr().as_mut() {
                     color_term.fg(color).unwrap();
-                    write!(color_term, "{}", msg.into()).unwrap();
+
+                    if let Some(msg) = msg {
+                        write!(color_term, "{}", msg.into()).unwrap();
+                    }
                 } else {
-                    write!(io::stderr(), "{}", msg.into()).unwrap();
+                    if let Some(msg) = msg {
+                        write!(io::stderr(), "{}", msg.into()).unwrap();
+                    }
                 }
             },
         }
@@ -173,7 +191,7 @@ mod print {
 
     pub fn reset_colors() {
         for stream in [StdStream::Out, StdStream::Err].iter().cloned() {
-            with("", stream, term::color::WHITE);
+            set_color::<String>(None, stream, term::color::WHITE);
         }
     }
 }

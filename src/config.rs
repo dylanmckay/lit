@@ -9,6 +9,8 @@ use std::collections::HashMap;
 use std::fmt;
 use tempfile::NamedTempFile;
 
+const DEFAULT_MAX_OUTPUT_CONTEXT_LINE_COUNT: usize = 10;
+
 /// The configuration of the test runner.
 #[derive(Clone, Debug)]
 pub struct Config
@@ -34,6 +36,12 @@ pub struct Config
     pub cleanup_temporary_files: bool,
     /// Whether verbose information about resolved variables should be printed to stderr.
     pub dump_variable_resolution: bool,
+    /// If set, debug output should be truncated to this many number of
+    /// context lines.
+    pub truncate_output_context_to_number_of_lines: Option<usize>,
+    /// Whether messages on the standard error streams emitted during test runs
+    /// should always be shown.
+    pub always_show_stderr: bool,
 }
 
 /// A function which can dynamically define newly used variables in a test.
@@ -106,6 +114,8 @@ impl Default for Config
             variable_lookup: Config::DEFAULT_VARIABLE_LOOKUP,
             cleanup_temporary_files: true,
             dump_variable_resolution: false,
+            always_show_stderr: false,
+            truncate_output_context_to_number_of_lines: Some(DEFAULT_MAX_OUTPUT_CONTEXT_LINE_COUNT),
         }
     }
 }

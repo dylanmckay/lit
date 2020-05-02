@@ -1,5 +1,5 @@
 use crate::{
-    model::{CommandKind, Invocation, TestFile, TestResultKind, TestFailReason},
+    model::{CommandKind, Invocation, TestFile, TestResultKind, TestFailReason, ProgramOutput},
     Config,
     vars,
     VariablesExt,
@@ -20,8 +20,8 @@ pub struct TestEvaluator
     pub invocation: Invocation,
 }
 
-pub fn execute_tests(test_file: &TestFile, config: &Config) -> TestResultKind {
-    for invocation in test_file.run_command_invocations() {
+pub fn execute_tests<'test>(test_file: &'test TestFile, config: &Config) -> Vec<(TestResultKind, &'test Invocation, CommandLine, ProgramOutput)> {
+    test_file.run_command_invocations().map(|invocation| {
         let initial_variables = {
             let mut vars = HashMap::new();
             vars.extend(config.constants.clone());
@@ -32,13 +32,13 @@ pub fn execute_tests(test_file: &TestFile, config: &Config) -> TestResultKind {
         let mut test_run_state = TestRunState::new(initial_variables);
         let (command, command_line) = self::build_command(invocation, test_file, config);
 
-        let (program_output, execution_result) = self::collect_output(command, command_line);
+        let (program_output, execution_result) = self::collect_output(command, command_line.clone());
 
         test_run_state.append_program_output(&program_output.stdout);
         test_run_state.append_program_stderr(&program_output.stderr);
 
         if execution_result.is_erroneous() {
-            return execution_result;
+            return (execution_result, invocation, command_line, program_output);
         }
 
         for command in test_file.commands.iter() {
@@ -63,20 +63,13 @@ pub fn execute_tests(test_file: &TestFile, config: &Config) -> TestResultKind {
 
             // Early return for failures.
             if test_result.is_erroneous() {
-                return test_result;
+                return (test_result, invocation, command_line, program_output);
             }
         }
-    }
 
-    TestResultKind::Pass
-}
-
-struct ProgramOutput { stdout: String, stderr: String }
-
-impl ProgramOutput {
-    pub fn empty() -> Self {
-        ProgramOutput { stdout: String::new(), stderr: String::new() }
-    }
+        // all commands passed if we got this far.
+        (TestResultKind::Pass, invocation, command_line, program_output)
+    }).collect()
 }
 
 fn collect_output(
@@ -90,10 +83,10 @@ fn collect_output(
         Err(e) => {
             let error_message = match e.kind() {
                 std::io::ErrorKind::NotFound => format!("shell '{}' does not exist", DEFAULT_SHELL).into(),
-                _ => e.into(),
+                _ => e.to_string(),
             };
 
-            return (ProgramOutput::empty(), TestResultKind::Error(error_message));
+            return (ProgramOutput::empty(), TestResultKind::Error { message: error_message });
         },
     };
 
@@ -115,7 +108,8 @@ fn collect_output(
     (program_output, test_result_kind)
 }
 
-struct CommandLine(pub String);
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CommandLine(pub String);
 
 /// Builds a command that can be used to execute the process behind a `RUN` directive.
 fn build_command(invocation: &Invocation,
@@ -139,3 +133,8 @@ fn build_command(invocation: &Invocation,
     (cmd, CommandLine(command_line))
 }
 
+impl std::fmt::Display for CommandLine {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt(fmt)
+    }
+}

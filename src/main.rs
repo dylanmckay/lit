@@ -1,18 +1,14 @@
 extern crate lit;
 extern crate clap;
 
-use clap::{App, Arg, ArgMatches};
+use clap::{App, ArgMatches};
 use std::env::consts;
 
 fn parse_cmdline() -> ArgMatches<'static> {
     let app = App::new("LLVM-lit inspired generic testing tool")
                           .version(env!("CARGO_PKG_VERSION"))
                           .author(env!("CARGO_PKG_AUTHORS"))
-                          .about(env!("CARGO_PKG_DESCRIPTION"))
-                          .arg(Arg::with_name("v")
-                               .short("v")
-                               .multiple(true)
-                               .help("Sets the level of verbosity"));
+                          .about(env!("CARGO_PKG_DESCRIPTION"));
     let app = lit::config::clap::mount_inside_app(app, true);
 
     let matches = app.get_matches();

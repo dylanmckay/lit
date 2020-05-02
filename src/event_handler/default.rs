@@ -1,18 +1,19 @@
-use crate::{Config, model::*};
+use crate::{util, Config, model::*};
 
+use itertools::Itertools;
 use std::io;
 use std::io::prelude::*;
 use term;
 
 /// The default event handler, logging to stdout/stderr.
 pub struct EventHandler {
-    failed_results: Vec<TestResult>,
+    test_results: Vec<TestResult>,
 }
 
 impl EventHandler {
     /// Creates a new default event handler.
     pub fn new() -> Self {
-        EventHandler { failed_results: Vec::new() }
+        EventHandler { test_results: Vec::new() }
     }
 }
 
@@ -23,33 +24,52 @@ impl std::default::Default for EventHandler {
 }
 
 impl super::EventHandler for EventHandler {
-    fn on_test_suite_started(&mut self, _: &Config, suite_details: &super::TestSuiteDetails) {
+    fn on_test_suite_started(&mut self, suite_details: &super::TestSuiteDetails, _: &Config) {
+        print::reset_colors(); // our white might not match initial console white. we should be consistent.
+
         print::line();
         print::horizontal_rule();
-        print::text(format!("Running tests ({} files)", suite_details.number_of_test_files));
+        print::textln(format!("Running tests ({} files)", suite_details.number_of_test_files));
         print::horizontal_rule();
         print::line();
     }
 
-    fn on_test_suite_finished(&mut self, passed: bool) {
+    fn on_test_suite_finished(&mut self, passed: bool, config: &Config) {
+        // Sort the test results so that they will be consecutive.
+        // This is required for itertools group_by used before to work properly.
+        self.test_results.sort_by_key(|r| r.overall_result.human_label_pluralized());
+
+        print::line();
+        print::textln("finished running tests");
+        print::test_suite_status_message(passed, false, &self.test_results);
         print::line();
         print::horizontal_rule();
+        print::horizontal_rule();
+        print::line();
 
-        match passed {
-            true => print::success("all tests succeeded"),
-            false => print::error("error: tests failed"),
+        if !passed {
+            let failed_results = self.test_results.iter().filter(|r| r.overall_result.is_erroneous()).collect::<Vec<_>>();
+
+            print::line();
+            print::textln_colored(format!("Failing tests ({}/{}):", failed_results.len(), self.test_results.len()), print::YELLOW);
+            print::line();
+
+            for failed_test_result in failed_results.iter() {
+                print::with("  ", print::StdStream::Err, print::RED); // indent the errors.
+                self::result(failed_test_result, false, config);
+            }
         }
+
+        print::test_suite_status_message(passed, true, &self.test_results);
 
         // 'cargo test' will use the color we last emitted if we don't do this.
         print::reset_colors();
     }
 
-    fn on_test_finished(&mut self, result: TestResult) {
-        self::result(&result, true);
+    fn on_test_finished(&mut self, result: TestResult, config: &Config) {
+        self::result(&result, true, config);
 
-        if result.kind.is_erroneous() {
-            self.failed_results.push(result);
-        }
+        self.test_results.push(result);
     }
 
     fn note_warning(&mut self, message: &str) {
@@ -57,8 +77,8 @@ impl super::EventHandler for EventHandler {
     }
 }
 
-pub fn result(result: &TestResult, verbose: bool) {
-    match result.kind {
+pub fn result(result: &TestResult, verbose: bool, config: &Config) {
+    match result.overall_result {
         TestResultKind::Pass => {
             print::success(format!("PASS :: {}", result.path.display()));
         },
@@ -72,13 +92,13 @@ pub fn result(result: &TestResult, verbose: bool) {
                      result.path.display()));
             print::line();
         },
-        TestResultKind::Error(ref e) => {
+        TestResultKind::Error { ref message } => {
             if verbose { print::line(); }
 
             print::error(format!("ERROR :: {}", result.path.display()));
 
             if verbose {
-                print::text(e.to_string());
+                print::textln(message);
 
                 print::line();
             }
@@ -91,21 +111,41 @@ pub fn result(result: &TestResult, verbose: bool) {
             // FIXME: improve formatting
 
             if verbose {
-                print::text(format!("reason: {:?}", reason));
                 print::line();
+                print::text("test failed: ");
+                print::textln_colored(reason.human_summary(), print::RED);
+                print::line();
+                print::textln(reason.human_detail_message(config));
 
                 if let Some(hint_text) = hint {
-                    print::text(format!("hint: {}", hint_text));
+                    print::textln(format!("hint: {}", hint_text));
                 }
+
+                print::line();
             }
         },
         TestResultKind::ExpectedFailure => {
             print::warning(format!("XFAIL :: {}", result.path.display()));
         },
     }
+
+    if verbose && (result.overall_result.is_erroneous() || config.always_show_stderr) {
+        for individual_run_result in result.individual_run_results.iter() {
+            let (_, _, command_line, output) = individual_run_result;
+
+            let formatted_stderr = crate::model::format_test_output("stderr", &output.stderr, 1, util::TruncateDirection::Bottom, config);
+            if !output.stderr.is_empty() {
+                print::textln(format!("NOTE: the program '{}' emitted text on standard error:", command_line));
+                print::line();
+                print::textln(formatted_stderr);
+                print::line();
+            }
+        }
+    }
 }
 
 mod print {
+    pub use term::color::*;
     use super::*;
 
     #[derive(Copy, Clone)]
@@ -123,12 +163,26 @@ mod print {
              term::color::WHITE);
     }
 
+    pub fn textln<S>(msg: S)
+        where S: Into<String> {
+        text(format!("{}\n", msg.into()))
+    }
+
     pub fn text<S>(msg: S)
         where S: Into<String> {
-        with(format!("{}\n", msg.into()),
+        with(format!("{}", msg.into()),
              StdStream::Out,
              term::color::WHITE);
     }
+
+
+    pub fn textln_colored<S>(msg: S, color: u32)
+        where S: Into<String> {
+        with(format!("{}\n", msg.into()),
+             StdStream::Out,
+             color);
+    }
+
 
     pub fn success<S>(msg: S)
         where S: Into<String> {
@@ -156,6 +210,31 @@ mod print {
         with(format!("{}\n", msg.into()),
              StdStream::Err,
              term::color::MAGENTA);
+    }
+
+    pub fn test_suite_status_message(passed: bool, verbose: bool, test_results: &[TestResult]) {
+        if verbose {
+            self::line();
+            self::horizontal_rule();
+        }
+
+        if verbose {
+            self::textln("Suite Status:");
+            self::line();
+
+            for (result_label, corresponding_results) in &test_results.iter().group_by(|r| r.overall_result.human_label_pluralized()) {
+                self::textln(format!("  {}: {}", result_label, corresponding_results.count()));
+            }
+
+            self::line();
+            self::horizontal_rule();
+            self::line();
+        }
+
+        match passed {
+            true => self::success("all tests succeeded"),
+            false => self::error("error: tests failed"),
+        }
     }
 
     pub fn with<S>(msg: S,

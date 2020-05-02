@@ -22,6 +22,7 @@ pub mod event_handler;
 mod model;
 mod parse;
 pub mod run;
+mod util;
 mod vars;
 
 #[macro_use]

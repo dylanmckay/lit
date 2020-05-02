@@ -18,6 +18,7 @@ default = ["clap"]
 [dependencies]
 clap = { version = "2.33", optional = true }
 error-chain = "0.12"
+itertools = "0.9"
 lazy_static = "1.4"
 log = "0.4"
 regex = "1.3"

@@ -3,6 +3,8 @@
 pub(crate) mod find_files;
 mod test_evaluator;
 
+pub use self::test_evaluator::CommandLine;
+
 use crate::{Config, event_handler::{EventHandler, TestSuiteDetails}};
 use crate::model::*;
 
@@ -41,7 +43,7 @@ pub fn tests<F>(
         number_of_test_files: test_paths.len(),
     };
 
-    event_handler.on_test_suite_started(&config, &test_suite_details);
+    event_handler.on_test_suite_started(&test_suite_details, &config);
 
     let mut has_failure = false;
     for test_file_path in test_paths {
@@ -51,7 +53,7 @@ pub fn tests<F>(
         if !is_successful { has_failure = true; }
     }
 
-    event_handler.on_test_suite_finished(!has_failure);
+    event_handler.on_test_suite_finished(!has_failure, &config);
 
     if !has_failure { Ok(()) } else { Err(()) }
 }
@@ -64,16 +66,20 @@ fn single_file(
     event_handler: &mut dyn EventHandler,
     config: &Config,
     ) -> bool {
-    let result_kind = test_evaluator::execute_tests(test_file, config);
+    let test_results = test_evaluator::execute_tests(test_file, config);
+
+    // The overall result is failure if there are any failures, otherwise it is a pass.
+    let overall_result = test_results.iter().map(|(r, _, _, _)| r).filter(|r| r.is_erroneous()).next().cloned().unwrap_or(TestResultKind::Pass);
 
     let result = TestResult {
         path: test_file.path.clone(),
-        kind: result_kind,
+        overall_result,
+        individual_run_results: test_results.into_iter().map(|(a, b, c, d)| (a, b.clone(), c, d)).collect(),
     };
 
-    let is_erroneous = result.kind.is_erroneous();
+    let is_erroneous = result.overall_result.is_erroneous();
 
-    event_handler.on_test_finished(result);
+    event_handler.on_test_finished(result, config);
 
     !is_erroneous
 }

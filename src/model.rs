@@ -1,5 +1,6 @@
-use crate::{Error, Variables};
+use crate::{run, util, Config, Variables};
 use std::{fmt, path::PathBuf};
+use std::fmt::Write;
 
 /// A tool invocation.
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -52,18 +53,24 @@ pub enum PatternComponent {
     NamedRegex { name: String, regex: String },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[must_use]
 pub enum TestResultKind
 {
+    /// Test passed successfully.
     Pass,
+    /// Test passed but it was declared with `XFAIL`.
     UnexpectedPass,
-    Error(Error),
+    /// An error occurred whilst running the test.
+    Error { message: String },
+    /// The test failed.
     Fail {
         reason: TestFailReason,
         hint: Option<String>,
     },
+    /// The test was expected to fail and it did.
     ExpectedFailure,
+    /// The test was skipped.
     Skip,
 }
 
@@ -74,6 +81,63 @@ pub enum TestFailReason {
         exit_status: i32,
     },
     CheckFailed(CheckFailureInfo),
+}
+
+impl TestFailReason {
+    pub fn human_summary(&self) -> &'static str {
+        match *self {
+            TestFailReason::UnsuccessfulExecution { .. } => {
+                "unsuccessful program execution whilst running test"
+            },
+            TestFailReason::CheckFailed(..) => {
+                "test checked for text that did not exist in the output"
+            },
+        }
+    }
+
+    pub fn human_detail_message(&self, config: &Config) -> String {
+        match *self {
+            TestFailReason::UnsuccessfulExecution { ref program_command_line, exit_status } => {
+                format!("command '{}' exited with code '{}'", program_command_line, exit_status)
+            },
+            TestFailReason::CheckFailed(ref check_failure_info) => {
+                let mut buf = String::new();
+                writeln!(&mut buf, "expected text '{}' but that was not found", check_failure_info.expected_pattern).unwrap();
+                writeln!(&mut buf).unwrap();
+
+                // Write the successfully checked output.
+                writeln!(&mut buf, "{}", format_test_output("successfully checked output",
+                        check_failure_info.successfully_checked_text(), 1, util::TruncateDirection::Top,
+                        config)).unwrap();
+
+                writeln!(&mut buf).unwrap();
+
+                // Write the remaining unchecked output.
+                writeln!(&mut buf, "{}", format_test_output("remaining unchecked output",
+                        check_failure_info.remaining_text(),
+                        check_failure_info.successfully_checked_upto_line_number(), util::TruncateDirection::Bottom,
+                        config)).unwrap();
+
+                buf
+            },
+        }
+    }
+}
+
+pub(crate) fn format_test_output(
+    output_label: &str,
+    unformatted_output: &str,
+    output_base_line_number: usize,
+    truncate_direction: util::TruncateDirection,
+    config: &Config) -> String {
+    let mut formatted_output = util::decorate_with_line_numbers(unformatted_output, output_base_line_number);
+
+    if let Some(max_line_count) = config.truncate_output_context_to_number_of_lines {
+        formatted_output = util::truncate_to_max_lines(&formatted_output, max_line_count, truncate_direction);
+    }
+    let formatted_output = util::indent(&formatted_output, 1);
+
+    format!("<{}>:\n\n{}\n</{}>", output_label, formatted_output, output_label)
 }
 
 /// Information about a failed check in a test.
@@ -91,8 +155,16 @@ pub struct TestResult
     /// A path to the test.
     pub path: PathBuf,
     /// The kind of result.
-    pub kind: TestResultKind,
+    pub overall_result: TestResultKind,
+    pub individual_run_results: Vec<(TestResultKind, Invocation, run::CommandLine, ProgramOutput)>,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ProgramOutput {
+    pub stdout: String,
+    pub stderr: String,
+}
+
 
 #[derive(Debug)]
 pub struct Results
@@ -141,7 +213,7 @@ impl TestResultKind {
         use self::TestResultKind::*;
 
         match *self {
-            UnexpectedPass | Error(..) | Fail { .. } => true,
+            UnexpectedPass | Error { .. } | Fail { .. } => true,
             Pass | Skip | ExpectedFailure => false,
         }
     }
@@ -149,6 +221,19 @@ impl TestResultKind {
     pub fn unwrap(&self) {
         if self.is_erroneous() {
             panic!("error whilst running test: {:?}", self);
+        }
+    }
+
+    pub fn human_label_pluralized(&self) -> &'static str {
+        use self::TestResultKind::*;
+
+        match *self {
+            Pass => "Passes",
+            UnexpectedPass => "Unexpected passes",
+            Error { .. } => "Errors",
+            Fail { .. } => "Test failures",
+            ExpectedFailure => "Expected failures",
+            Skip => "Skipped tests",
         }
     }
 }
@@ -164,6 +249,10 @@ impl CheckFailureInfo {
     pub fn remaining_text(&self) -> &str {
         let byte_subslice = &self.complete_output_text.as_bytes()[self.successfully_checked_until_byte_index..];
         convert_bytes_to_str(byte_subslice)
+    }
+
+    pub fn successfully_checked_upto_line_number(&self) -> usize {
+        self.successfully_checked_text().lines().count() + 1
     }
 }
 
@@ -226,5 +315,11 @@ impl std::fmt::Debug for CheckFailureInfo {
 
 fn convert_bytes_to_str(bytes: &[u8]) -> &str {
     std::str::from_utf8(bytes).expect("invalid UTF-8 in output stream")
+}
+
+impl ProgramOutput {
+    pub fn empty() -> Self {
+        ProgramOutput { stdout: String::new(), stderr: String::new() }
+    }
 }
 

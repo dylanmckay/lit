@@ -1,12 +1,13 @@
 # RUN: sh @file
 
-# CHECK: hello there
-echo hello there
+# CHECK: fizz 1
+# CHECK: fizz 2
+# CHECK: fizz 101
 
-echo there is junk in between the lines
+echo "warning: something is pretty tetchy, bro" 1>&2
+echo "warning: ah nah nevermind" 1>&2
 
-echo right over here
-
-# CHECK: but this text here is good
-echo but this text here is good
-
+for i in $(seq 1 100); do
+  echo fizz $i
+  echo
+done

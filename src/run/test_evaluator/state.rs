@@ -32,6 +32,8 @@ pub struct TestRunState {
     /// The current position in the stream at which all prior output has been
     /// successfully checked by the test script.
     current_stream_byte_position: AbsoluteByteIndex,
+    /// The stderr portion of the command output. This does not get used by `CHECK`s.
+    complete_stderr: String,
     /// A list of available variables to the test script.
     variables: HashMap<String, String>,
 }
@@ -41,6 +43,7 @@ impl TestRunState {
         TestRunState {
             complete_output_stream: String::new(),
             current_stream_byte_position: AbsoluteByteIndex(0),
+            complete_stderr: String::new(),
             variables: initial_variables,
         }
     }
@@ -48,6 +51,11 @@ impl TestRunState {
     /// Appends output from the inner program.
     pub fn append_program_output(&mut self, output: &str) {
         self.complete_output_stream.extend(output.chars())
+    }
+
+    /// Appends stderr output.
+    pub fn append_program_stderr(&mut self, stderr: &str) {
+        self.complete_stderr.extend(stderr.chars())
     }
 
     /// Verifies that a text pattern appears subsequently in the stream.

@@ -10,6 +10,12 @@ pub use self::config::Config;
 pub use self::errors::*;
 pub use self::vars::{Variables, VariablesExt};
 
+// The file extensions used by the integration tests for this repository.
+#[doc(hidden)]
+pub const INTEGRATION_TEST_FILE_EXTENSIONS: &'static [&'static str] = &[
+    "txt", "sh",
+];
+
 pub mod config;
 mod errors;
 pub mod event_handler;

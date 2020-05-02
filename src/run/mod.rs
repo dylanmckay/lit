@@ -1,10 +1,9 @@
 //! Routines for running tests.
 
-mod find_files;
-// mod print;
+pub(crate) mod find_files;
 mod test_evaluator;
 
-use crate::{Config, event_handler::EventHandler};
+use crate::{Config, event_handler::{EventHandler, TestSuiteDetails}};
 use crate::model::*;
 
 /// Runs all tests according to a given config.
@@ -30,13 +29,19 @@ pub fn tests<F>(
 
     let test_paths = match find_files::with_config(&config) {
         Ok(paths) => paths,
-        Err(e) => util::abort(format!("could not find files: {}", e)),
+        Err(e) => util::abort(format!("could not find test files: {}", e)),
     };
 
     if test_paths.is_empty() {
         event_handler.note_warning("could not find any tests");
         return Err(());
     }
+
+    let test_suite_details = TestSuiteDetails {
+        number_of_test_files: test_paths.len(),
+    };
+
+    event_handler.on_test_suite_started(&config, &test_suite_details);
 
     let mut has_failure = false;
     for test_file_path in test_paths {

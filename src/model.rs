@@ -69,6 +69,10 @@ pub enum TestResultKind
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TestFailReason {
+    UnsuccessfulExecution {
+        program_command_line: String,
+        exit_status: i32,
+    },
     CheckFailed(CheckFailureInfo),
 }
 

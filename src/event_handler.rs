@@ -11,7 +11,7 @@ mod default;
 /// An object which listens to events that occur during a test suite run.
 pub trait EventHandler {
     /// Called to notify before the test suite has started.
-    fn on_test_suite_started(&mut self, config: &Config);
+    fn on_test_suite_started(&mut self, config: &Config, suite_details: &TestSuiteDetails);
 
     /// Called to notify when the entire test suite has finished execution.
     fn on_test_suite_finished(&mut self, passed: bool);
@@ -21,5 +21,12 @@ pub trait EventHandler {
 
     /// Called to notify about a nonfatal warning.
     fn note_warning(&mut self, message: &str);
+}
+
+/// Stores details about the test suite.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TestSuiteDetails {
+    /// The number of test files in the suite.
+    pub number_of_test_files: usize,
 }
 

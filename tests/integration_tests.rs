@@ -10,6 +10,8 @@ fn integration_tests() {
 
     run::tests(lit::event_handler::Default::default(), |config| {
         config.add_search_path(format!("{}/integration-tests", CRATE_PATH));
-        config.add_extension("txt");
+        for ext in lit::INTEGRATION_TEST_FILE_EXTENSIONS {
+            config.add_extension(ext);
+        }
     }).expect("unit test(s) failed");
 }

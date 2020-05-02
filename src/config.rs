@@ -61,8 +61,8 @@ impl Config
     ///
     /// We only attempt to run tests for files within the extension
     /// whitelist.
-    pub fn add_extension<S>(&mut self, ext: S) where S: Into<String> {
-        self.supported_file_extensions.push(ext.into())
+    pub fn add_extension<S>(&mut self, ext: S) where S: AsRef<str> {
+        self.supported_file_extensions.push(ext.as_ref().to_owned())
     }
 
     /// Adds a search path to the test runner.

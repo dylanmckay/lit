@@ -1,5 +1,5 @@
 use crate::{
-    model::{CommandKind, Invocation, TestFile, TestResultKind},
+    model::{CommandKind, Invocation, TestFile, TestResultKind, TestFailReason},
     Config,
     vars,
     VariablesExt,
@@ -30,16 +30,15 @@ pub fn execute_tests(test_file: &TestFile, config: &Config) -> TestResultKind {
         };
 
         let mut test_run_state = TestRunState::new(initial_variables);
-        let command = self::build_command(invocation, test_file, config);
+        let (command, command_line) = self::build_command(invocation, test_file, config);
 
-        match self::collect_output(command) {
-            Ok(output) => {
-                test_run_state.append_program_output(&output);
-            },
-            Err(e) => {
-                assert!(e.is_erroneous());
-                return e;
-            },
+        let (program_output, execution_result) = self::collect_output(command, command_line);
+
+        test_run_state.append_program_output(&program_output.stdout);
+        test_run_state.append_program_stderr(&program_output.stderr);
+
+        if execution_result.is_erroneous() {
+            return execution_result;
         }
 
         for command in test_file.commands.iter() {
@@ -72,39 +71,56 @@ pub fn execute_tests(test_file: &TestFile, config: &Config) -> TestResultKind {
     TestResultKind::Pass
 }
 
-fn collect_output(mut command: process::Command) -> Result<String, TestResultKind> {
+struct ProgramOutput { stdout: String, stderr: String }
+
+impl ProgramOutput {
+    pub fn empty() -> Self {
+        ProgramOutput { stdout: String::new(), stderr: String::new() }
+    }
+}
+
+fn collect_output(
+    mut command: process::Command,
+    command_line: CommandLine,
+) -> (ProgramOutput, TestResultKind) {
+    let mut test_result_kind = TestResultKind::Pass;
+
     let output = match command.output() {
         Ok(o) => o,
-        Err(e) => match e.kind() {
-            std::io::ErrorKind::NotFound => {
-                return Err(TestResultKind::Error(
-                    format!("shell '{}' does not exist", DEFAULT_SHELL).into(),
-                ));
-            },
-            _ => return Err(TestResultKind::Error(e.into())),
+        Err(e) => {
+            let error_message = match e.kind() {
+                std::io::ErrorKind::NotFound => format!("shell '{}' does not exist", DEFAULT_SHELL).into(),
+                _ => e.into(),
+            };
+
+            return (ProgramOutput::empty(), TestResultKind::Error(error_message));
         },
     };
 
-    if !output.status.success() {
-        let stderr = String::from_utf8(output.stderr).unwrap();
+    let program_output = ProgramOutput {
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    };
 
-        return Err(TestResultKind::Fail {
-            // message: format!("exited with code {}", output.status.code().unwrap()),
-            reason: unimplemented!(),
+    if !output.status.success() {
+        test_result_kind = TestResultKind::Fail {
+            reason: TestFailReason::UnsuccessfulExecution {
+                exit_status: output.status.code().unwrap_or_else(|| if output.status.success() { 0 } else { 1 }),
+                program_command_line: command_line.0,
+            },
             hint: None,
-        });
+        };
     }
 
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    // FIXME: what about stderr?
-
-    Ok(stdout)
+    (program_output, test_result_kind)
 }
+
+struct CommandLine(pub String);
 
 /// Builds a command that can be used to execute the process behind a `RUN` directive.
 fn build_command(invocation: &Invocation,
                  test_file: &TestFile,
-                 config: &Config) -> process::Command {
+                 config: &Config) -> (process::Command, CommandLine) {
     let mut variables = config.constants.clone();
     variables.extend(test_file.variables());
 
@@ -120,6 +136,6 @@ fn build_command(invocation: &Invocation,
         }
     }
 
-    cmd
+    (cmd, CommandLine(command_line))
 }
 

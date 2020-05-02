@@ -22,11 +22,11 @@ fn parse_cmdline() -> ArgMatches<'static> {
 fn main() {
     let arg_matches = parse_cmdline();
 
-    println!("hello");
-
     lit::run::tests(lit::event_handler::Default::default(), |config| {
         config.add_search_path("integration-tests/");
-        config.add_extension("txt");
+        for ext in lit::INTEGRATION_TEST_FILE_EXTENSIONS {
+            config.add_extension(ext);
+        }
 
         config.constants.insert("arch".to_owned(), consts::ARCH.to_owned());
         config.constants.insert("os".to_owned(), consts::OS.to_owned());

@@ -23,11 +23,17 @@ impl std::default::Default for EventHandler {
 }
 
 impl super::EventHandler for EventHandler {
-    fn on_test_suite_started(&mut self, _: &Config) { }
+    fn on_test_suite_started(&mut self, _: &Config, suite_details: &super::TestSuiteDetails) {
+        print::line();
+        print::horizontal_rule();
+        print::text(format!("Running tests ({} files)", suite_details.number_of_test_files));
+        print::horizontal_rule();
+        print::line();
+    }
 
     fn on_test_suite_finished(&mut self, passed: bool) {
         print::line();
-        print::line();
+        print::horizontal_rule();
 
         match passed {
             true => print::success("all tests succeeded"),
@@ -107,6 +113,12 @@ mod print {
 
     pub fn line() {
         with("\n",
+             StdStream::Out,
+             term::color::WHITE);
+    }
+
+    pub fn horizontal_rule() {
+        with("=================================================================\n",
              StdStream::Out,
              term::color::WHITE);
     }

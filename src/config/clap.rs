@@ -3,7 +3,8 @@
 //! These routines can be used to update `Config` objects with automatic CLI arguments.
 
 use crate::Config;
-use clap::{App, Arg, ArgMatches};
+use clap::{App, Arg, ArgMatches, SubCommand};
+use std::io::Write;
 
 /// The set of available debug parameters.
 const DEBUG_OPTION_VALUES: &'static [(&'static str, fn(&mut Config))] = &[
@@ -12,12 +13,34 @@ const DEBUG_OPTION_VALUES: &'static [(&'static str, fn(&mut Config))] = &[
     }),
 ];
 
+const SHOW_OPTION_VALUES: &'static [(&'static str, fn(&Config, &mut dyn Write) -> std::io::Result<()>)] = &[
+    ("test-file-paths", |config, writer| {
+        let test_file_paths = crate::run::find_files::with_config(config).unwrap();
+        for test_file_path in test_file_paths {
+            writeln!(writer, "{}", test_file_path)?;
+        }
+
+        Ok(())
+
+    }),
+    ("lit-config", |config, writer| {
+        writeln!(writer, "{:#?}", config)
+    }),
+];
+
 lazy_static! {
     static ref DEBUG_OPTION_HELP: String = {
         let debug_option_vals = DEBUG_OPTION_VALUES.iter().map(|d| d.0).collect::<Vec<_>>();
         let debug_option_vals = debug_option_vals.join(", ");
 
-        format!("Enabled debug output. Possible debugging flags are: {}.", debug_option_vals)
+        format!("Enable debug output. Possible debugging flags are: {}.", debug_option_vals)
+    };
+
+    static ref SHOW_SUBCOMMAND_WHAT_OPTION_HELP: String = {
+        let show_option_vals = SHOW_OPTION_VALUES.iter().map(|d| format!("    - {}", d.0)).collect::<Vec<_>>();
+        let show_option_vals = show_option_vals.join("\n");
+
+        format!("Show only a specific value. Possible values are:\n{}\nIf this value is not specified, all values are shown", show_option_vals)
     };
 }
 
@@ -54,7 +77,13 @@ pub fn mount_inside_app<'a, 'b>(
             .takes_value(true)
             .value_name("FLAG")
             .multiple(true)
-            .help(&DEBUG_OPTION_HELP[..]));
+            .help(&DEBUG_OPTION_HELP[..]))
+        .subcommand(SubCommand::with_name("show")
+            .about("Shows information about the test suite, without running tests")
+            .arg(Arg::with_name("what")
+                .takes_value(true)
+                .value_name("WHAT")
+                .help(&SHOW_SUBCOMMAND_WHAT_OPTION_HELP)));
 
     // Test paths argument
     let test_paths_arg = {
@@ -124,6 +153,45 @@ pub fn parse_arguments(matches: &ArgMatches,
         for (_, debug_flag_fn) in DEBUG_OPTION_VALUES {
             debug_flag_fn(destination_config);
         }
+    }
+
+    // NOTE: should process subcommands at the very end
+    if let Some(matches) = matches.subcommand_matches("show") {
+        let what_fns: Vec<_> = match matches.value_of("what") {
+            Some(what) => {
+                match SHOW_OPTION_VALUES.iter().find(|(name, _)| *name == what) {
+                    Some((name, what_fn)) => vec![(name, what_fn)],
+                    None => {
+                        eprintln!("error: unknown show value: '{}'", what);
+                        std::process::exit(1);
+                    },
+                }
+            },
+            None => {
+                SHOW_OPTION_VALUES.iter().map(|(name, f)| (name, f)).collect()
+            },
+        };
+
+        let writer = &mut std::io::stdout();
+
+        let show_labels = what_fns.len() > 1;
+        for (label, what_fn) in what_fns {
+            if show_labels {
+                writeln!(writer, "=================================================================").unwrap();
+                writeln!(writer, "{}:", label).unwrap();
+                writeln!(writer, "=================================================================").unwrap();
+                writeln!(writer, "").unwrap();
+            }
+
+            what_fn(&destination_config, writer).unwrap();
+
+            if show_labels {
+                writeln!(writer, "").unwrap();
+            }
+        }
+
+        // No tests should be ran when running this subcommand.
+        std::process::exit(0);
     }
 }
 

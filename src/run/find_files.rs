@@ -18,6 +18,7 @@ pub fn with_config(config: &Config) -> Result<Vec<TestFilePath>, String> {
     }
 
     let test_paths = absolute_paths.into_iter().map(|absolute_path| {
+        let absolute_path = std::fs::canonicalize(absolute_path).unwrap();
         let relative_path =  relative_path::compute(&absolute_path, config).expect("could not compute relative path");
 
         TestFilePath { absolute: absolute_path, relative: relative_path }
@@ -106,7 +107,6 @@ mod relative_path {
                         // The common ancestor path may be empty if the files are on different
                         // devices.
                         if common_ancestor.file_name().is_some() {
-                            println!("common ancestor: {:?}", common_ancestor.file_name());
                             current_path_containing_everything_so_far = common_ancestor;
                         }
                     } else {

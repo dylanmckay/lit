@@ -85,9 +85,7 @@ fn single_file(
         individual_run_results: test_results.into_iter().map(|(a, b, c, d)| (a, b.clone(), c, d)).collect(),
     };
 
-    for (i, (result_kind, _, command_line, output)) in result.individual_run_results.iter().enumerate() {
-        save_artifacts::individual_run_result(i + 1, result_kind, command_line, output, test_file, artifact_config);
-    }
+    save_artifacts::run_results(&result, test_file, artifact_config);
 
     let is_erroneous = result.overall_result.is_erroneous();
 
@@ -158,9 +156,22 @@ mod save_artifacts {
         });
     }
 
-    pub fn individual_run_result(run_number: usize, result_kind: &TestResultKind, command_line: &CommandLine, output: &ProgramOutput, test_file: &TestFile, config: &Config) {
-        let dir_test_file = format!("run-command-{}", run_number);
-        let dir_run_result = test_file.path.relative.join(format!("run-command-{}", run_number));
+    pub fn run_results(test_result: &TestResult, test_file: &TestFile, artifact_config: &Config) {
+        let only_one_run_command = test_result.individual_run_results.len() == 1;
+
+        for (i, (result_kind, _, command_line, output)) in test_result.individual_run_results.iter().enumerate() {
+            let run_number = if only_one_run_command { None } else { Some(i + 1) };
+            self::individual_run_result(run_number, result_kind, command_line, output, test_file, artifact_config);
+        }
+    }
+
+    pub fn individual_run_result(run_number: Option<usize>, result_kind: &TestResultKind, command_line: &CommandLine, output: &ProgramOutput, test_file: &TestFile, config: &Config) {
+        let test_file_extension = test_file.path.absolute.extension().and_then(|s| s.to_str()).unwrap_or("txt");
+
+        let dir_run_result = match run_number {
+            Some(run_number) => test_file.path.relative.join(format!("run-command-{}", run_number)),
+            None => test_file.path.relative.clone(),
+        };
 
         save(&dir_run_result.join("result.txt"), config, || {
             format!("{:#?}\n", result_kind)
@@ -168,6 +179,11 @@ mod save_artifacts {
 
         save(&dir_run_result.join("stdout.txt"), config, || &output.stdout[..]);
         save(&dir_run_result.join("stderr.txt"), config, || &output.stderr[..]);
+        save(&dir_run_result.join("command-line.txt"), config, || format!("{}\n", command_line.0));
+
+        save(&dir_run_result.join(&format!("copy-of-test-case.{}", test_file_extension)), config, || std::fs::read(&test_file.path.absolute).unwrap());
+
+        create_symlink(&test_file.path.absolute, &dir_run_result.join(&format!("symlink-to-test-case.{}", test_file_extension)), config)
     }
 
     fn save<C>(relative_path: &Path, config: &Config, render: impl FnOnce() -> C )
@@ -181,5 +197,23 @@ mod save_artifacts {
             fs::create_dir_all(parent_directory).unwrap();
             fs::write(absolute_path, file_content).unwrap();
         }
+    }
+
+    /// Creates a symlink, unless symlinks are not supported in this environment.
+    fn create_symlink(src: &Path, relative_dst: &Path, config: &Config) {
+        #[cfg(unix)]
+        fn create_symlink_impl(src: &Path, dst: &Path) -> std::io::Result<()> { std::os::unix::fs::symlink(src, dst) }
+        #[cfg(not(unix))]
+        fn create_symlink_impl(_: &Path, _: &Path) -> std::io::Result<()> { Ok(()) }
+
+        if let Some(artifacts_dir) = config.artifacts_dir.as_ref() {
+            let dst = artifacts_dir.join(relative_dst);
+
+            if dst.exists() {
+                fs::remove_file(&dst).unwrap(); // Remove the symlink.
+            }
+            create_symlink_impl(src, &dst).unwrap();
+        }
+
     }
 }

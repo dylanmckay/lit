@@ -79,7 +79,7 @@ impl Config
     ///
     /// We will recurse through the path to find tests.
     pub fn add_search_path<P>(&mut self, path: P) where P: Into<String> {
-        self.test_paths.push(PathBuf::from(path.into()));
+        self.test_paths.push(PathBuf::from(path.into()).canonicalize().unwrap());
     }
 
     /// Gets an iterator over all test search directories.

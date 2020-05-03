@@ -10,12 +10,10 @@ lazy_static! {
 }
 
 /// Parses a test file
-pub fn test_file<P,I>(path: P, chars: I) -> Result<TestFile, String>
+pub fn test_file<P,I>(path: TestFilePath, chars: I) -> Result<TestFile, String>
     where P: AsRef<Path>, I: Iterator<Item=char> {
     let mut commands = Vec::new();
     let test_body: String = chars.collect();
-
-    let path = path.as_ref().to_owned();
 
     for (line_idx, line) in test_body.lines().enumerate() {
         let line_number = line_idx + 1;

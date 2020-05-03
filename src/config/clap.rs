@@ -4,7 +4,7 @@
 
 use crate::Config;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use std::io::Write;
+use std::{io::Write, path::Path};
 
 /// The set of available debug parameters.
 const DEBUG_OPTION_VALUES: &'static [(&'static str, fn(&mut Config))] = &[
@@ -79,6 +79,12 @@ pub fn mount_inside_app<'a, 'b>(
         .arg(Arg::with_name("keep-tempfiles")
             .long("keep-tempfiles")
             .help("Disables automatic deletion of tempfiles generated during the test run"))
+        .arg(Arg::with_name("save-artifacts-to")
+            .long("save-artifacts-to")
+            .short("O")
+            .takes_value(true)
+            .value_name("DIRECTORY")
+            .help("Exports all program outputs, temporary files, and logs, to a directory at the specified path. Will create the directory if it does not yet exist."))
         .arg(Arg::with_name("verbose")
             .long("verbose")
             .short("v")
@@ -152,6 +158,10 @@ pub fn parse_arguments(matches: &ArgMatches,
 
     if matches.is_present("keep-tempfiles") {
         destination_config.cleanup_temporary_files = false;
+    }
+
+    if let Some(artifacts_path) = matches.value_of("save-artifacts-to") {
+        destination_config.save_artifacts_to_directory = Some(Path::new(artifacts_path).to_owned());
     }
 
     // Parse verbosity.

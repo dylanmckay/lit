@@ -1,21 +1,28 @@
 //! Functions for retrieving lists of files from disk.
 
-use crate::Config;
+use crate::{Config, model::TestFilePath};
 
 use std;
+use std::path::Path;
 use walkdir::WalkDir;
 
 /// Recursively finds tests for the given paths.
-pub fn with_config(config: &Config) -> Result<Vec<String>,String> {
-    let mut tests = Vec::new();
+pub fn with_config(config: &Config) -> Result<Vec<TestFilePath>, String> {
+    let mut absolute_paths = Vec::new();
 
     for path in config.test_paths.iter() {
         let path_str = path.display().to_string();
-        let path_tests = in_path(&path_str, config)?;
-        tests.extend(path_tests.into_iter());
+
+        let test_paths = in_path(&path_str, config)?;
+        absolute_paths.extend(test_paths.into_iter().map(|p| Path::new(&p).to_owned()));
     }
 
-    Ok(tests)
+    let test_paths = absolute_paths.into_iter().map(|absolute_path| {
+        let relative_path =  // TODO: find most specific path in search tree. failing that, find most common path from all test paths and use that. otherwise use a random one like 'test'. maybe rename 'relative_path' to 'relative_path_for_display'.
+        TestFilePath { absolute: absolute_path, relative: relative_path }
+    }).collect();
+
+    Ok(test_paths)
 }
 
 pub fn in_path(path: &str,

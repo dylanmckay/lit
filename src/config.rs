@@ -34,6 +34,8 @@ pub struct Config
     /// This includes temporary files created by using `@tempfile`
     /// variables.
     pub cleanup_temporary_files: bool,
+    /// Export all generated test artifacts to the specified directory.
+    pub save_artifacts_to_directory: Option<PathBuf>,
     /// Whether verbose information about resolved variables should be printed to stderr.
     pub dump_variable_resolution: bool,
     /// If set, debug output should be truncated to this many number of
@@ -113,6 +115,7 @@ impl Default for Config
             constants: HashMap::new(),
             variable_lookup: Config::DEFAULT_VARIABLE_LOOKUP,
             cleanup_temporary_files: true,
+            save_artifacts_to_directory: None,
             dump_variable_resolution: false,
             always_show_stderr: false,
             truncate_output_context_to_number_of_lines: Some(DEFAULT_MAX_OUTPUT_CONTEXT_LINE_COUNT),

@@ -25,6 +25,11 @@ pub fn tests<F>(
     let mut config = Config::default();
     config_fn(&mut config);
 
+    // Used for storing artifacts generated during testing.
+    let artifact_config = save_artifacts::Config {
+        artifacts_dir: config.save_artifacts_to_directory.clone(),
+    };
+
     if config.test_paths.is_empty() {
         util::abort("no test paths given to lit")
     }
@@ -48,12 +53,14 @@ pub fn tests<F>(
     let mut has_failure = false;
     for test_file_path in test_paths {
         let test_file = util::parse_test(&test_file_path).unwrap();
-        let is_successful = self::single_file(&test_file, &mut event_handler, &config);
+        let is_successful = self::single_file(&test_file, &mut event_handler, &config, &artifact_config);
 
         if !is_successful { has_failure = true; }
     }
+    let is_successful = !has_failure;
 
-    event_handler.on_test_suite_finished(!has_failure, &config);
+    event_handler.on_test_suite_finished(is_successful, &config);
+    save_artifacts::suite_status(is_successful, &artifact_config);
 
     if !has_failure { Ok(()) } else { Err(()) }
 }
@@ -65,6 +72,7 @@ fn single_file(
     test_file: &TestFile,
     event_handler: &mut dyn EventHandler,
     config: &Config,
+    artifact_config: &save_artifacts::Config,
     ) -> bool {
     let test_results = test_evaluator::execute_tests(test_file, config);
 
@@ -76,6 +84,10 @@ fn single_file(
         overall_result,
         individual_run_results: test_results.into_iter().map(|(a, b, c, d)| (a, b.clone(), c, d)).collect(),
     };
+
+    for (i, (result_kind, _, command_line, output)) in result.individual_run_results.iter().enumerate() {
+        save_artifacts::individual_run_result(i + 1, result_kind, command_line, output, test_file, artifact_config);
+    }
 
     let is_erroneous = result.overall_result.is_erroneous();
 
@@ -89,7 +101,7 @@ mod util
     use crate::model::*;
     use crate::parse;
 
-    use std::io::Read;
+    use std::{io::Read, path::Path};
     use std;
 
     pub fn crate_dir() -> Option<String> {
@@ -102,17 +114,17 @@ mod util
         current_exec.parent().map(|p| p.to_str().unwrap().to_owned())
     }
 
-    pub fn parse_test(file_name: &str) -> Result<TestFile,String> {
+    pub fn parse_test(path: TestFilePath) -> Result<TestFile, String> {
         let mut text = String::new();
-        open_file(file_name).read_to_string(&mut text).unwrap();
-        parse::test_file(file_name, text.chars())
+        open_file(&path.absolute).read_to_string(&mut text).unwrap();
+        parse::test_file(path, text.chars())
     }
 
-    fn open_file(path: &str) -> std::fs::File {
+    fn open_file(path: &Path) -> std::fs::File {
         match std::fs::File::open(path) {
             Ok(f) => f,
             Err(e) => abort(format!("could not open {}: {}",
-                                    path, e.to_string())),
+                                    path.display(), e.to_string())),
         }
     }
     pub fn abort<S>(msg: S) -> !
@@ -120,5 +132,54 @@ mod util
         eprintln!("error: {}", msg.into());
 
         std::process::exit(1);
+    }
+}
+
+mod save_artifacts {
+    use super::CommandLine;
+    use crate::model::*;
+    use std::path::{Path, PathBuf};
+    use std::fs;
+
+    const SUITE_STATUS_PATH: &'static str = "suite-status.txt";
+
+    #[derive(Clone, Debug)]
+    pub struct Config {
+        pub artifacts_dir: Option<PathBuf>,
+    }
+
+    pub fn suite_status(is_successful: bool, config: &Config) {
+        save(&Path::new(SUITE_STATUS_PATH), config, || {
+            if is_successful {
+                "successful\n"
+            } else {
+                "failed\n"
+            }
+        });
+    }
+
+    pub fn individual_run_result(run_number: usize, result_kind: &TestResultKind, command_line: &CommandLine, output: &ProgramOutput, test_file: &TestFile, config: &Config) {
+        let dir_test_file = format!("run-command-{}", run_number);
+        let dir_run_result = test_file.relative_path.join(format!("run-command-{}", run_number));
+
+        save(&dir_run_result.join("result.txt"), config, || {
+            format!("{:?}\n", result_kind)
+        });
+
+        save(&dir_run_result.join("stdout.txt"), config, || output.stdout);
+        save(&dir_run_result.join("stderr.txt"), config, || output.stderr);
+    }
+
+    fn save<C>(relative_path: &Path, config: &Config, render: impl FnOnce() -> C )
+        where C: AsRef<[u8]> {
+        if let Some(artifacts_dir) = config.artifacts_dir.as_ref() {
+            let absolute_path = artifacts_dir.join(relative_path);
+            let parent_directory = absolute_path.parent().unwrap();
+
+            let file_content = render();
+
+            fs::create_dir_all(parent_directory).unwrap();
+            fs::write(absolute_path, file_content).unwrap();
+        }
     }
 }

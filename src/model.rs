@@ -11,12 +11,18 @@ pub struct Invocation
 }
 
 // TODO: rename to TestFile
-#[derive(Clone,Debug,PartialEq,Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TestFile
 {
-    /// The on-disk path to the test file.
-    pub path: PathBuf,
+    pub path: TestFilePath,
     pub commands: Vec<Command>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TestFilePath {
+    /// The on-disk path to the test file.
+    pub absolute: PathBuf,
+    pub relative: PathBuf,
 }
 
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -261,7 +267,7 @@ impl TestFile
     /// Extra test-specific variables.
     pub fn variables(&self) -> Variables {
         let mut v = Variables::new();
-        v.insert("file".to_owned(), self.path.to_str().unwrap().to_owned());
+        v.insert("file".to_owned(), self.path.absolute.to_str().unwrap().to_owned());
         v
     }
 

@@ -17,7 +17,7 @@ const SHOW_OPTION_VALUES: &'static [(&'static str, fn(&Config, &mut dyn Write) -
     ("test-file-paths", |config, writer| {
         let test_file_paths = crate::run::find_files::with_config(config).unwrap();
         for test_file_path in test_file_paths {
-            writeln!(writer, "{}", test_file_path)?;
+            writeln!(writer, "{}", test_file_path.absolute.display())?;
         }
 
         Ok(())

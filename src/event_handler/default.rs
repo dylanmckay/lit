@@ -80,22 +80,22 @@ impl super::EventHandler for EventHandler {
 pub fn result(result: &TestResult, verbose: bool, config: &Config) {
     match result.overall_result {
         TestResultKind::Pass => {
-            print::success(format!("PASS :: {}", result.path.display()));
+            print::success(format!("PASS :: {}", result.path.relative.display()));
         },
         TestResultKind::UnexpectedPass => {
-            print::failure(format!("UNEXPECTED PASS :: {}", result.path.display()));
+            print::failure(format!("UNEXPECTED PASS :: {}", result.path.relative.display()));
         },
         TestResultKind::Skip => {
             print::line();
             print::warning(format!(
                 "SKIP :: {} (test does not contain any test commands, perhaps you meant to add a 'CHECK'?)",
-                     result.path.display()));
+                     result.path.relative.display()));
             print::line();
         },
         TestResultKind::Error { ref message } => {
             if verbose { print::line(); }
 
-            print::error(format!("ERROR :: {}", result.path.display()));
+            print::error(format!("ERROR :: {}", result.path.relative.display()));
 
             if verbose {
                 print::textln(message);
@@ -106,7 +106,7 @@ pub fn result(result: &TestResult, verbose: bool, config: &Config) {
         TestResultKind::Fail { ref reason, ref hint } => {
             if verbose { print::line(); }
 
-            print::failure(format!("FAIL :: {}", result.path.display()));
+            print::failure(format!("FAIL :: {}", result.path.relative.display()));
 
             // FIXME: improve formatting
 
@@ -125,7 +125,7 @@ pub fn result(result: &TestResult, verbose: bool, config: &Config) {
             }
         },
         TestResultKind::ExpectedFailure => {
-            print::warning(format!("XFAIL :: {}", result.path.display()));
+            print::warning(format!("XFAIL :: {}", result.path.relative.display()));
         },
     }
 

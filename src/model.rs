@@ -159,7 +159,7 @@ pub struct CheckFailureInfo {
 pub struct TestResult
 {
     /// A path to the test.
-    pub path: PathBuf,
+    pub path: TestFilePath,
     /// The kind of result.
     pub overall_result: TestResultKind,
     pub individual_run_results: Vec<(TestResultKind, Invocation, run::CommandLine, ProgramOutput)>,

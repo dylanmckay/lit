@@ -52,7 +52,7 @@ pub fn tests<F>(
 
     let mut has_failure = false;
     for test_file_path in test_paths {
-        let test_file = util::parse_test(&test_file_path).unwrap();
+        let test_file = util::parse_test(test_file_path).unwrap();
         let is_successful = self::single_file(&test_file, &mut event_handler, &config, &artifact_config);
 
         if !is_successful { has_failure = true; }
@@ -160,14 +160,14 @@ mod save_artifacts {
 
     pub fn individual_run_result(run_number: usize, result_kind: &TestResultKind, command_line: &CommandLine, output: &ProgramOutput, test_file: &TestFile, config: &Config) {
         let dir_test_file = format!("run-command-{}", run_number);
-        let dir_run_result = test_file.relative_path.join(format!("run-command-{}", run_number));
+        let dir_run_result = test_file.path.relative.join(format!("run-command-{}", run_number));
 
         save(&dir_run_result.join("result.txt"), config, || {
-            format!("{:?}\n", result_kind)
+            format!("{:#?}\n", result_kind)
         });
 
-        save(&dir_run_result.join("stdout.txt"), config, || output.stdout);
-        save(&dir_run_result.join("stderr.txt"), config, || output.stderr);
+        save(&dir_run_result.join("stdout.txt"), config, || &output.stdout[..]);
+        save(&dir_run_result.join("stderr.txt"), config, || &output.stderr[..]);
     }
 
     fn save<C>(relative_path: &Path, config: &Config, render: impl FnOnce() -> C )

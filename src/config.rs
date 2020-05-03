@@ -4,7 +4,7 @@
 
 #[cfg(feature = "clap")] pub mod clap;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::fmt;
 use tempfile::NamedTempFile;
@@ -80,6 +80,14 @@ impl Config
     /// We will recurse through the path to find tests.
     pub fn add_search_path<P>(&mut self, path: P) where P: Into<String> {
         self.test_paths.push(PathBuf::from(path.into()));
+    }
+
+    /// Gets an iterator over all test search directories.
+    pub fn test_search_directories(&self) -> impl Iterator<Item=&Path> {
+        self.test_paths.iter().filter(|p| {
+            println!("test path file name: {:?}", p.file_name());
+            p.is_dir()
+        }).map(PathBuf::as_ref)
     }
 
     /// Checks if a given extension will have tests run on it

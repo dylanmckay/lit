@@ -2,7 +2,6 @@ use crate::model::*;
 
 use regex::Regex;
 use std::mem;
-use std::path::Path;
 
 lazy_static! {
     static ref DIRECTIVE_REGEX: Regex = Regex::new("([A-Z-]+):(.*)").unwrap();
@@ -10,8 +9,8 @@ lazy_static! {
 }
 
 /// Parses a test file
-pub fn test_file<P,I>(path: TestFilePath, chars: I) -> Result<TestFile, String>
-    where P: AsRef<Path>, I: Iterator<Item=char> {
+pub fn test_file<I>(path: TestFilePath, chars: I) -> Result<TestFile, String>
+    where I: Iterator<Item=char> {
     let mut commands = Vec::new();
     let test_body: String = chars.collect();
 

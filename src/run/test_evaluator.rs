@@ -145,11 +145,14 @@ fn build_command(invocation: &Invocation,
     let mut cmd = process::Command::new(DEFAULT_SHELL);
     cmd.args(&["-c", &command_line]);
 
-    if let Ok(current_exe) = env::current_exe() {
-        if let Some(parent) = current_exe.parent() {
-            let current_path = env::var("PATH").unwrap_or(String::new());
-            cmd.env("PATH", format!("{}:{}", parent.to_str().unwrap(), current_path));
-        }
+    if !config.extra_executable_search_paths.is_empty() {
+        let os_path_separator = if cfg!(windows) { ";" } else { ":" };
+
+        let current_path = env::var("PATH").unwrap_or(String::new());
+        let paths_to_inject = config.extra_executable_search_paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>();
+        let os_path_to_inject = format!("{}{}{}", paths_to_inject.join(os_path_separator), os_path_separator, current_path);
+
+        cmd.env("PATH", os_path_to_inject);
     }
 
     (cmd, CommandLine(command_line))

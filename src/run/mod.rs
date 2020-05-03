@@ -105,16 +105,6 @@ mod util
     use std::{io::Read, path::Path};
     use std;
 
-    pub fn crate_dir() -> Option<String> {
-        let current_exec = match std::env::current_exe() {
-            Ok(e) => e,
-            Err(e) => abort(
-                format!("failed to get current executable path: {}", e)),
-        };
-
-        current_exec.parent().map(|p| p.to_str().unwrap().to_owned())
-    }
-
     pub fn parse_test(path: TestFilePath) -> Result<TestFile, String> {
         let mut text = String::new();
         open_file(&path.absolute).read_to_string(&mut text).unwrap();

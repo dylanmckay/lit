@@ -41,6 +41,9 @@ pub struct Config
     /// If set, debug output should be truncated to this many number of
     /// context lines.
     pub truncate_output_context_to_number_of_lines: Option<usize>,
+    /// A list of extra directory paths that should be included in the `$PATH` when
+    /// executing processes specified inside the tests.
+    pub extra_executable_search_paths: Vec<PathBuf>,
     /// Whether messages on the standard error streams emitted during test runs
     /// should always be shown.
     pub always_show_stderr: bool,
@@ -75,11 +78,21 @@ impl Config
         self.supported_file_extensions.push(ext.as_ref().to_owned())
     }
 
+    /// Marks multiple file extensions as supported by the running.
+    pub fn add_extensions(&mut self, extensions: &[&str]) {
+        self.supported_file_extensions.extend(extensions.iter().map(|s| s.to_string()));
+    }
+
     /// Adds a search path to the test runner.
     ///
     /// We will recurse through the path to find tests.
     pub fn add_search_path<P>(&mut self, path: P) where P: Into<String> {
         self.test_paths.push(PathBuf::from(path.into()).canonicalize().unwrap());
+    }
+
+    /// Adds an extra executable directory to the OS `$PATH` when executing tests.
+    pub fn add_executable_search_path<P>(&mut self, path: P) where P: AsRef<Path> {
+        self.extra_executable_search_paths.push(path.as_ref().to_owned())
     }
 
     /// Gets an iterator over all test search directories.
@@ -117,6 +130,16 @@ impl Config
 impl Default for Config
 {
     fn default() -> Self {
+        let mut extra_executable_search_paths = Vec::new();
+
+        // Always inject the current directory of the executable into the PATH so
+        // that lit can be used manually inside the test if desired.
+        if let Ok(current_exe) = std::env::current_exe() {
+            if let Some(parent) = current_exe.parent() {
+                extra_executable_search_paths.push(parent.to_owned());
+            }
+        }
+
         Config {
             supported_file_extensions: Vec::new(),
             test_paths: Vec::new(),
@@ -127,6 +150,7 @@ impl Default for Config
             dump_variable_resolution: false,
             always_show_stderr: false,
             truncate_output_context_to_number_of_lines: Some(DEFAULT_MAX_OUTPUT_CONTEXT_LINE_COUNT),
+            extra_executable_search_paths,
         }
     }
 }

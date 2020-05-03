@@ -1,9 +1,0 @@
-; RUN: cat @file
-
-; CHECK: hello [[name:\w+]]
-hello bob
-
-; CHECK: goodbye $$name
-goodbye bob
-
-

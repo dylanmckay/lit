@@ -124,8 +124,11 @@ pub fn result(result: &TestResult, verbose: bool, config: &Config) {
                 print::line();
             }
         },
-        TestResultKind::ExpectedFailure => {
+        TestResultKind::ExpectedFailure { .. } => {
             print::warning(format!("XFAIL :: {}", result.path.relative.display()));
+        },
+        TestResultKind::EmptyTest { .. } => {
+            print::error(format!("EMPTY TEST :: {}", result.path.relative.display()));
         },
     }
 

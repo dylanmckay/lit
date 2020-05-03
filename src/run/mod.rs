@@ -77,7 +77,10 @@ fn single_file(
     let test_results = test_evaluator::execute_tests(test_file, config);
 
     // The overall result is failure if there are any failures, otherwise it is a pass.
-    let overall_result = test_results.iter().map(|(r, _, _, _)| r).filter(|r| r.is_erroneous()).next().cloned().unwrap_or(TestResultKind::Pass);
+    let overall_result = test_results.iter().map(|(r, _, _, _)| r).filter(|r| match *r {
+        TestResultKind::Pass { .. } => false,
+        _ => true,
+    }).next().cloned().unwrap_or(TestResultKind::Pass);
 
     let result = TestResult {
         path: test_file.path.clone(),

@@ -41,35 +41,57 @@ pub fn execute_tests<'test>(test_file: &'test TestFile, config: &Config) -> Vec<
             return (execution_result, invocation, command_line, program_output);
         }
 
-        for command in test_file.commands.iter() {
-            let test_result = match command.kind {
-                CommandKind::Run(..) | // RUN commands are already handled above, in the loop.
-                    CommandKind::XFail => { // XFAIL commands are handled separately too.
-                        TestResultKind::Pass
-                    },
-                CommandKind::Check(ref text_pattern) => test_run_state.check(text_pattern, config),
-                CommandKind::CheckNext(ref text_pattern) => test_run_state.check_next(text_pattern, config),
-            };
+        let overall_test_result_kind = run_test_checks(&mut test_run_state, test_file, config);
+        (overall_test_result_kind, invocation, command_line, program_output)
+    }).collect()
+}
 
-            if config.cleanup_temporary_files {
-                let tempfile_paths = test_run_state.variables().tempfile_paths();
+fn run_test_checks(
+    test_run_state: &mut TestRunState,
+    test_file: &TestFile,
+    config: &Config,
+) -> TestResultKind {
+    let mut check_result = TestResultKind::EmptyTest;
 
-                for tempfile in tempfile_paths {
-                    // Ignore errors, these are tempfiles, they go away anyway.
-                    fs::remove_file(tempfile).ok();
-                }
-            }
+    for command in test_file.commands.iter() {
+        let test_result = match command.kind {
+            CommandKind::Run(..) | // RUN commands are already handled above, in the loop.
+                CommandKind::XFail => { // XFAIL commands are handled separately too.
+                    TestResultKind::Pass
+                },
+            CommandKind::Check(ref text_pattern) => test_run_state.check(text_pattern, config),
+            CommandKind::CheckNext(ref text_pattern) => test_run_state.check_next(text_pattern, config),
+        };
 
+        if config.cleanup_temporary_files {
+            let tempfile_paths = test_run_state.variables().tempfile_paths();
 
-            // Early return for failures.
-            if test_result.is_erroneous() {
-                return (test_result, invocation, command_line, program_output);
+            for tempfile in tempfile_paths {
+                // Ignore errors, these are tempfiles, they go away anyway.
+                fs::remove_file(tempfile).ok();
             }
         }
 
-        // all commands passed if we got this far.
-        (TestResultKind::Pass, invocation, command_line, program_output)
-    }).collect()
+
+        // Early return for failures.
+        if test_result.is_erroneous() {
+            check_result = test_result;
+            break;
+        } else {
+            check_result = TestResultKind::Pass;
+        }
+    }
+
+    match check_result {
+        TestResultKind::Fail { reason, hint } => {
+            if test_file.is_expected_failure() {
+                TestResultKind::ExpectedFailure { actual_reason: reason }
+            } else {
+                TestResultKind::Fail { reason, hint}
+            }
+        },
+        r => r,
+    }
 }
 
 fn collect_output(

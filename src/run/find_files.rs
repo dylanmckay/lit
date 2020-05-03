@@ -3,7 +3,7 @@
 use crate::{Config, model::TestFilePath};
 
 use std;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use walkdir::WalkDir;
 
 /// Recursively finds tests for the given paths.

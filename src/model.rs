@@ -75,7 +75,10 @@ pub enum TestResultKind
         hint: Option<String>,
     },
     /// The test was expected to fail and it did.
-    ExpectedFailure,
+    ExpectedFailure {
+        actual_reason: TestFailReason,
+    },
+    EmptyTest,
     /// The test was skipped.
     Skip,
 }
@@ -220,7 +223,7 @@ impl TestResultKind {
 
         match *self {
             UnexpectedPass | Error { .. } | Fail { .. } => true,
-            Pass | Skip | ExpectedFailure => false,
+            Pass | Skip | ExpectedFailure { .. } | EmptyTest => false,
         }
     }
 
@@ -238,7 +241,8 @@ impl TestResultKind {
             UnexpectedPass => "Unexpected passes",
             Error { .. } => "Errors",
             Fail { .. } => "Test failures",
-            ExpectedFailure => "Expected failures",
+            ExpectedFailure { .. } => "Expected failures",
+            EmptyTest { .. } => "Empty tests",
             Skip => "Skipped tests",
         }
     }
@@ -277,6 +281,11 @@ impl TestFile
             CommandKind::Run(ref invocation) => Some(invocation),
             _ => None,
         })
+    }
+
+    /// Is this test expected to fail.
+    pub fn is_expected_failure(&self) -> bool {
+        self.commands.iter().any(|c| if let CommandKind::XFail = c.kind { true } else { false })
     }
 }
 

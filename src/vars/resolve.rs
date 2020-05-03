@@ -29,8 +29,11 @@ pub fn text_pattern(pattern: &TextPattern, config: &Config,
             // FIXME: proper error handling.
             let value = config.lookup_variable(name, variables);
 
+            let var_resolution_log = format!("resolving '@{}' to '{}' in {:?}", name, value, pattern);
+            debug!("{}", var_resolution_log);
+
             if config.dump_variable_resolution {
-                eprintln!("[info] resolving '@{}' to '{}' in {:?}", name, value, pattern);
+                eprintln!("[info] {}", var_resolution_log);
             }
 
             value.to_owned()
@@ -64,8 +67,11 @@ pub fn invocation(invocation: &Invocation,
 
             let value = config.lookup_variable(&next_span.name, constants);
 
+            let var_resolution_log = format!("resolving '@{}' to '{}' in {:?}", next_span.name, value, _cmd);
+            debug!("{}", var_resolution_log);
+
             if config.dump_variable_resolution {
-                eprintln!("[info] resolving '@{}' to '{}' in {:?}", next_span.name, value, _cmd);
+                eprintln!("[info] {}", var_resolution_log);
             }
 
             // Check if there is some text between us and the regex.

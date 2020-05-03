@@ -3,7 +3,7 @@ extern crate lit;
 use std::env::consts;
 
 fn main() {
-    lit::run::tests(|config| {
+    lit::run::tests(lit::event_handler::Default::default(), |config| {
         config.add_search_path("test/");
         config.add_extension("cpp");
 

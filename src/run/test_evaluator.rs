@@ -1,285 +1,165 @@
-use crate::Config;
-use std::collections::HashMap;
-use std::{env, fs, process};
-use regex::Regex;
-use crate::model::*;
-use crate::{parse, vars};
+use crate::{
+    model::{CommandKind, Invocation, TestFile, TestResultKind, TestFailReason, ProgramOutput},
+    Config,
+    vars,
+    VariablesExt,
+};
+use self::state::TestRunState;
+use std::{collections::HashMap, env, fs, process};
 
-use std;
+mod state;
+#[cfg(test)] mod state_tests;
 
-const SHELL: &'static str = "bash";
+const DEFAULT_SHELL: &'static str = "bash";
 
+/// Responsible for evaluating specific tests and collecting
+/// the results.
+#[derive(Clone)]
 pub struct TestEvaluator
 {
     pub invocation: Invocation,
 }
 
-struct Checker
-{
-    lines: Lines,
-    variables: HashMap<String, String>,
-}
-
-/// Iterator over a set of lines.
-struct Lines {
-    lines: Vec<String>,
-    current: usize,
-}
-
-impl TestEvaluator
-{
-    pub fn new(invocation: Invocation) -> Self {
-        TestEvaluator { invocation: invocation }
-    }
-
-    pub fn run(self, test_file: &TestFile, config: &Config) -> TestResultKind {
-        let mut cmd = self.build_command(test_file, config);
-
-        let output = match cmd.output() {
-            Ok(o) => o,
-            Err(e) => match e.kind() {
-                std::io::ErrorKind::NotFound => {
-                    return TestResultKind::Error(
-                        format!("shell '{}' does not exist", SHELL).into(),
-                    );
-                },
-                _ => return TestResultKind::Error(e.into()),
-            },
+pub fn execute_tests<'test>(test_file: &'test TestFile, config: &Config) -> Vec<(TestResultKind, &'test Invocation, CommandLine, ProgramOutput)> {
+    test_file.run_command_invocations().map(|invocation| {
+        let initial_variables = {
+            let mut vars = HashMap::new();
+            vars.extend(config.constants.clone());
+            vars.extend(test_file.variables());
+            vars
         };
 
-        if !output.status.success() {
-            let stderr = String::from_utf8(output.stderr).unwrap();
+        let mut test_run_state = TestRunState::new(initial_variables);
+        let (command, command_line) = self::build_command(invocation, test_file, config);
 
-            return TestResultKind::Fail {
-                message: format!(
-                    "exited with code {}", output.status.code().unwrap()),
-                stderr: Some(stderr),
-            };
+        let (program_output, execution_result) = self::collect_output(command, command_line.clone());
+
+        test_run_state.append_program_output(&program_output.stdout);
+        test_run_state.append_program_stderr(&program_output.stderr);
+
+        if execution_result.is_erroneous() {
+            return (execution_result, invocation, command_line, program_output);
         }
 
-        let stdout = String::from_utf8(output.stdout).unwrap();
-
-        let stdout_lines: Vec<_> = stdout.lines().map(|l| l.trim().to_owned()).collect();
-        let stdout: String = stdout_lines.join("\n");
-
-        Checker::new(stdout).run(config, &test_file)
-    }
-
-    pub fn build_command(&self,
-                         test_file: &TestFile,
-                         config: &Config) -> process::Command {
-        let mut variables = config.constants.clone();
-        variables.extend(test_file.variables());
-
-        let command_line: String = vars::resolve::invocation(&self.invocation, &config, &mut variables);
-
-        let mut cmd = process::Command::new("bash");
-        cmd.args(&["-c", &command_line]);
-
-        if let Ok(current_exe) = env::current_exe() {
-            if let Some(parent) = current_exe.parent() {
-                let current_path = env::var("PATH").unwrap_or(String::new());
-                cmd.env("PATH", format!("{}:{}", parent.to_str().unwrap(), current_path));
-            }
-        }
-
-        cmd
-    }
+        let overall_test_result_kind = run_test_checks(&mut test_run_state, test_file, config);
+        (overall_test_result_kind, invocation, command_line, program_output)
+    }).collect()
 }
 
-impl Checker
-{
-    fn new(stdout: String) -> Self {
-        Checker {
-            lines: stdout.into(),
-            variables: HashMap::new(),
-        }
-    }
+fn run_test_checks(
+    test_run_state: &mut TestRunState,
+    test_file: &TestFile,
+    config: &Config,
+) -> TestResultKind {
+    let mut check_result = TestResultKind::EmptyTest;
 
-    fn run(&mut self, config: &Config, test_file: &TestFile) -> TestResultKind {
-        let mut expect_test_pass = true;
-        let result = self.run_expecting_pass(config, test_file, &mut expect_test_pass);
-
-        if expect_test_pass {
-            result
-        } else { // expected failure
-            match result {
-                TestResultKind::Pass => TestResultKind::UnexpectedPass,
-                TestResultKind::Error(_) |
-                    TestResultKind::Fail { .. } => TestResultKind::ExpectedFailure,
-                TestResultKind::Skip => TestResultKind::Skip,
-                TestResultKind::UnexpectedPass |
-                    TestResultKind::ExpectedFailure => unreachable!(),
-            }
-        }
-    }
-
-    fn run_expecting_pass(&mut self,
-                config: &Config,
-                test_file: &TestFile,
-                expect_test_pass: &mut bool) -> TestResultKind {
-        for directive in test_file.directives.iter() {
-            match directive.command {
-                // Some tests can be marked as expected failures.
-                Command::XFail => *expect_test_pass = false,
-                Command::Run(..) => (),
-                Command::Check(ref text_pattern) => {
-                    let regex = vars::resolve::text_pattern(&text_pattern, config, &mut self.variables);
-
-                    let beginning_line = self.lines.peek().unwrap_or_else(|| "".to_owned());
-                    let matched_line = self.lines.find(|l| regex.is_match(l));
-
-                    if let Some(matched_line) = matched_line {
-                        self.process_captures(&regex, &matched_line);
-                    } else {
-                        let message = format_check_error(test_file,
-                            directive,
-                            &format!("could not find match: '{}'", text_pattern),
-                            &beginning_line);
-                        return TestResultKind::Fail { message, stderr: None };
-                    }
+    for command in test_file.commands.iter() {
+        let test_result = match command.kind {
+            CommandKind::Run(..) | // RUN commands are already handled above, in the loop.
+                CommandKind::XFail => { // XFAIL commands are handled separately too.
+                    TestResultKind::Pass
                 },
-                Command::CheckNext(ref text_pattern) => {
-                    let regex = vars::resolve::text_pattern(&text_pattern, config, &mut self.variables);
+            CommandKind::Check(ref text_pattern) => test_run_state.check(text_pattern, config),
+            CommandKind::CheckNext(ref text_pattern) => test_run_state.check_next(text_pattern, config),
+        };
 
-                    if let Some(next_line) = self.lines.next() {
-                        if regex.is_match(&next_line) {
-                            self.process_captures(&regex, &next_line);
-                        } else {
-                            let message = format_check_error(test_file,
-                                directive,
-                                &format!("could not find pattern: '{}'", text_pattern),
-                                &next_line);
-
-                            return TestResultKind::Fail { message, stderr: None };
-                        }
-                    } else {
-                        return TestResultKind::Fail {
-                            message: format!("check-next reached the end of file"),
-                            stderr: None,
-                        };
-                    }
-                },
-            }
-        }
-
-        // N.B. This currently only runs for successful
-        // test runs. Perhaps it should run for all?
         if config.cleanup_temporary_files {
-            let tempfiles = self.variables.iter()
-                                  .filter(|(k,_)| k.contains("tempfile"))
-                                  .map(|(_,v)| v);
+            let tempfile_paths = test_run_state.variables().tempfile_paths();
 
-            for tempfile in tempfiles {
+            for tempfile in tempfile_paths {
                 // Ignore errors, these are tempfiles, they go away anyway.
                 fs::remove_file(tempfile).ok();
             }
         }
 
-        TestResultKind::Pass
+
+        // Early return for failures.
+        if test_result.is_erroneous() {
+            check_result = test_result;
+            break;
+        } else {
+            check_result = TestResultKind::Pass;
+        }
     }
 
-    pub fn process_captures(&mut self, regex: &Regex, line: &str) {
-        // We shouldn't be calling this function if it didn't match.
-        debug_assert_eq!(regex.is_match(line), true);
-        let captures = if let Some(captures) = regex.captures(line) {
-            captures
-        } else {
-            return;
-        };
-
-        for capture_name in regex.capture_names() {
-            // we only care about named captures.
-            if let Some(name) = capture_name {
-                let captured_value = captures.name(name).unwrap();
-
-                self.variables.insert(name.to_owned(), captured_value.as_str().to_owned());
+    match check_result {
+        TestResultKind::Fail { reason, hint } => {
+            if test_file.is_expected_failure() {
+                TestResultKind::ExpectedFailure { actual_reason: reason }
+            } else {
+                TestResultKind::Fail { reason, hint}
             }
-        }
+        },
+        r => r,
     }
 }
 
-impl Lines {
-    pub fn new(lines: Vec<String>) -> Self {
-        Lines { lines: lines, current: 0 }
+fn collect_output(
+    mut command: process::Command,
+    command_line: CommandLine,
+) -> (ProgramOutput, TestResultKind) {
+    let mut test_result_kind = TestResultKind::Pass;
+
+    let output = match command.output() {
+        Ok(o) => o,
+        Err(e) => {
+            let error_message = match e.kind() {
+                std::io::ErrorKind::NotFound => format!("shell '{}' does not exist", DEFAULT_SHELL).into(),
+                _ => e.to_string(),
+            };
+
+            return (ProgramOutput::empty(), TestResultKind::Error { message: error_message });
+        },
+    };
+
+    let program_output = ProgramOutput {
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    };
+
+    if !output.status.success() {
+        test_result_kind = TestResultKind::Fail {
+            reason: TestFailReason::UnsuccessfulExecution {
+                exit_status: output.status.code().unwrap_or_else(|| if output.status.success() { 0 } else { 1 }),
+                program_command_line: command_line.0,
+            },
+            hint: None,
+        };
     }
 
-    fn peek(&self) -> Option<<Self as Iterator>::Item> {
-        self.next_index().map(|idx| self.lines[idx].clone())
-    }
-
-    fn next_index(&self) -> Option<usize> {
-        if self.current > self.lines.len() { return None; }
-
-        self.lines[self.current..].iter()
-            .position(|l| parse::possible_directive(l, 0).is_none())
-            .map(|offset| self.current + offset)
-    }
+    (program_output, test_result_kind)
 }
 
-impl Iterator for Lines
-{
-    type Item = String;
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CommandLine(pub String);
 
-    fn next(&mut self) -> Option<String> {
-        if let Some(next_index) = self.next_index() {
-            self.current = next_index + 1;
-            Some(self.lines[next_index].clone())
-        } else {
-            None
-        }
+/// Builds a command that can be used to execute the process behind a `RUN` directive.
+fn build_command(invocation: &Invocation,
+                 test_file: &TestFile,
+                 config: &Config) -> (process::Command, CommandLine) {
+    let mut variables = config.constants.clone();
+    variables.extend(test_file.variables());
+
+    let command_line: String = vars::resolve::invocation(invocation, &config, &mut variables);
+
+    let mut cmd = process::Command::new(DEFAULT_SHELL);
+    cmd.args(&["-c", &command_line]);
+
+    if !config.extra_executable_search_paths.is_empty() {
+        let os_path_separator = if cfg!(windows) { ";" } else { ":" };
+
+        let current_path = env::var("PATH").unwrap_or(String::new());
+        let paths_to_inject = config.extra_executable_search_paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>();
+        let os_path_to_inject = format!("{}{}{}", paths_to_inject.join(os_path_separator), os_path_separator, current_path);
+
+        cmd.env("PATH", os_path_to_inject);
     }
+
+    (cmd, CommandLine(command_line))
 }
 
-impl From<String> for Lines
-{
-    fn from(s: String) -> Lines {
-        Lines::new(s.split("\n").map(ToOwned::to_owned).collect())
+impl std::fmt::Display for CommandLine {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt(fmt)
     }
 }
-
-fn format_check_error(test_file: &TestFile,
-                      directive: &Directive,
-                      msg: &str,
-                      next_line: &str) -> String {
-    self::format_error(test_file, directive, msg, next_line)
-}
-
-fn format_error(test_file: &TestFile,
-                directive: &Directive,
-                msg: &str,
-                next_line: &str) -> String {
-    format!("{}:{}: {}\nnext line: '{}'", test_file.path.display(), directive.line, msg, next_line)
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    fn lines(s: &str) -> Vec<String> {
-        let lines: Lines = s.to_owned().into();
-        lines.collect()
-    }
-
-    #[test]
-    fn trivial_lines_works_correctly() {
-        assert_eq!(lines("hello\nworld\nfoo"), &["hello", "world", "foo"]);
-    }
-
-    #[test]
-    fn lines_ignores_directives() {
-        assert_eq!(lines("; RUN: cat %file\nhello\n; CHECK: foo\nfoo"),
-                   &["hello", "foo"]);
-    }
-
-    #[test]
-    fn lines_can_peek() {
-        let mut lines: Lines = "hello\nworld\nfoo".to_owned().into();
-        assert_eq!(lines.next(), Some("hello".to_owned()));
-        assert_eq!(lines.peek(), Some("world".to_owned()));
-        assert_eq!(lines.next(), Some("world".to_owned()));
-        assert_eq!(lines.peek(), Some("foo".to_owned()));
-        assert_eq!(lines.next(), Some("foo".to_owned()));
-    }
-}
-

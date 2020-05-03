@@ -1,9 +1,15 @@
 //! The type that stores testing configuration.
+//!
+//! Use the code in this module to tune testing behaviour.
 
-use std::path::PathBuf;
+#[cfg(feature = "clap")] pub mod clap;
+
+use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use std::fmt;
 use tempfile::NamedTempFile;
+
+const DEFAULT_MAX_OUTPUT_CONTEXT_LINE_COUNT: usize = 10;
 
 /// The configuration of the test runner.
 #[derive(Clone, Debug)]
@@ -28,8 +34,19 @@ pub struct Config
     /// This includes temporary files created by using `@tempfile`
     /// variables.
     pub cleanup_temporary_files: bool,
+    /// Export all generated test artifacts to the specified directory.
+    pub save_artifacts_to_directory: Option<PathBuf>,
     /// Whether verbose information about resolved variables should be printed to stderr.
     pub dump_variable_resolution: bool,
+    /// If set, debug output should be truncated to this many number of
+    /// context lines.
+    pub truncate_output_context_to_number_of_lines: Option<usize>,
+    /// A list of extra directory paths that should be included in the `$PATH` when
+    /// executing processes specified inside the tests.
+    pub extra_executable_search_paths: Vec<PathBuf>,
+    /// Whether messages on the standard error streams emitted during test runs
+    /// should always be shown.
+    pub always_show_stderr: bool,
 }
 
 /// A function which can dynamically define newly used variables in a test.
@@ -57,15 +74,33 @@ impl Config
     ///
     /// We only attempt to run tests for files within the extension
     /// whitelist.
-    pub fn add_extension<S>(&mut self, ext: S) where S: Into<String> {
-        self.supported_file_extensions.push(ext.into())
+    pub fn add_extension<S>(&mut self, ext: S) where S: AsRef<str> {
+        self.supported_file_extensions.push(ext.as_ref().to_owned())
+    }
+
+    /// Marks multiple file extensions as supported by the running.
+    pub fn add_extensions(&mut self, extensions: &[&str]) {
+        self.supported_file_extensions.extend(extensions.iter().map(|s| s.to_string()));
     }
 
     /// Adds a search path to the test runner.
     ///
     /// We will recurse through the path to find tests.
     pub fn add_search_path<P>(&mut self, path: P) where P: Into<String> {
-        self.test_paths.push(PathBuf::from(path.into()));
+        self.test_paths.push(PathBuf::from(path.into()).canonicalize().unwrap());
+    }
+
+    /// Adds an extra executable directory to the OS `$PATH` when executing tests.
+    pub fn add_executable_search_path<P>(&mut self, path: P) where P: AsRef<Path> {
+        self.extra_executable_search_paths.push(path.as_ref().to_owned())
+    }
+
+    /// Gets an iterator over all test search directories.
+    pub fn test_search_directories(&self) -> impl Iterator<Item=&Path> {
+        self.test_paths.iter().filter(|p| {
+            println!("test path file name: {:?}", p.file_name());
+            p.is_dir()
+        }).map(PathBuf::as_ref)
     }
 
     /// Checks if a given extension will have tests run on it
@@ -88,20 +123,34 @@ impl Config
             }
         }
 
-        variables.get(name).expect("no constant with that name exists")
+        variables.get(name).expect(&format!("no variable with the name '{}' exists", name))
     }
 }
 
 impl Default for Config
 {
     fn default() -> Self {
+        let mut extra_executable_search_paths = Vec::new();
+
+        // Always inject the current directory of the executable into the PATH so
+        // that lit can be used manually inside the test if desired.
+        if let Ok(current_exe) = std::env::current_exe() {
+            if let Some(parent) = current_exe.parent() {
+                extra_executable_search_paths.push(parent.to_owned());
+            }
+        }
+
         Config {
             supported_file_extensions: Vec::new(),
             test_paths: Vec::new(),
             constants: HashMap::new(),
             variable_lookup: Config::DEFAULT_VARIABLE_LOOKUP,
             cleanup_temporary_files: true,
+            save_artifacts_to_directory: None,
             dump_variable_resolution: false,
+            always_show_stderr: false,
+            truncate_output_context_to_number_of_lines: Some(DEFAULT_MAX_OUTPUT_CONTEXT_LINE_COUNT),
+            extra_executable_search_paths,
         }
     }
 }

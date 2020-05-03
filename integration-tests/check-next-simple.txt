@@ -1,8 +1,8 @@
 ; RUN: cat @file
 
+; Prints the test itself, to verify strings within itself.
+
 ; CHECK: hello
-hello
-; CHECK-NEXT: world
-world
+; CHECK: world
 
 

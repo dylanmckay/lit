@@ -1,6 +1,0 @@
-; RUN: cat @file
-
-; CHECK: hello
-hello
-
-

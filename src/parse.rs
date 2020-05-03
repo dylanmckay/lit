@@ -2,7 +2,6 @@ use crate::model::*;
 
 use regex::Regex;
 use std::mem;
-use std::path::Path;
 
 lazy_static! {
     static ref DIRECTIVE_REGEX: Regex = Regex::new("([A-Z-]+):(.*)").unwrap();
@@ -10,21 +9,19 @@ lazy_static! {
 }
 
 /// Parses a test file
-pub fn test_file<P,I>(path: P, chars: I) -> Result<TestFile, String>
-    where P: AsRef<Path>, I: Iterator<Item=char> {
-    let mut directives = Vec::new();
+pub fn test_file<I>(path: TestFilePath, chars: I) -> Result<TestFile, String>
+    where I: Iterator<Item=char> {
+    let mut commands = Vec::new();
     let test_body: String = chars.collect();
-
-    let path = path.as_ref().to_owned();
 
     for (line_idx, line) in test_body.lines().enumerate() {
         let line_number = line_idx + 1;
 
-        match self::possible_directive(line, line_number as _) {
-            Some(Ok(directive)) => directives.push(directive),
+        match self::possible_command(line, line_number as _) {
+            Some(Ok(command)) => commands.push(command),
             Some(Err(e)) => {
                 return Err(format!(
-                    "could not parse directive: {}", e)
+                    "could not parse command: {}", e)
                 );
             },
             None => continue,
@@ -33,7 +30,7 @@ pub fn test_file<P,I>(path: P, chars: I) -> Result<TestFile, String>
 
     Ok(TestFile {
         path,
-        directives: directives,
+        commands: commands,
     })
 }
 
@@ -141,11 +138,11 @@ pub fn text_pattern(s: &str) -> TextPattern {
     TextPattern { components: components }
 }
 
-/// Parses a possible directive, if a string defines one.
+/// Parses a possible command, if a string defines one.
 ///
-/// Returns `None` if no directive is specified.
-pub fn possible_directive(string: &str, line: u32)
-    -> Option<Result<Directive, String>> {
+/// Returns `None` if no command is specified.
+pub fn possible_command(string: &str, line: u32)
+    -> Option<Result<Command, String>> {
     if !DIRECTIVE_REGEX.is_match(string) { return None; }
 
     let captures = DIRECTIVE_REGEX.captures(string).unwrap();
@@ -161,18 +158,18 @@ pub fn possible_directive(string: &str, line: u32)
                 Err(e) => return Some(Err(e)),
             };
 
-            Some(Ok(Directive::new(Command::Run(invocation), line)))
+            Some(Ok(Command::new(CommandKind::Run(invocation), line)))
         },
         "CHECK" => {
             let text_pattern = self::text_pattern(after_command_str);
-            Some(Ok(Directive::new(Command::Check(text_pattern), line)))
+            Some(Ok(Command::new(CommandKind::Check(text_pattern), line)))
         },
         "CHECK-NEXT" => {
             let text_pattern = self::text_pattern(after_command_str);
-            Some(Ok(Directive::new(Command::CheckNext(text_pattern), line)))
+            Some(Ok(Command::new(CommandKind::CheckNext(text_pattern), line)))
         },
         "XFAIL" => {
-            Some(Ok(Directive::new(Command::XFail, line)))
+            Some(Ok(Command::new(CommandKind::XFail, line)))
         },
         _ => {
             Some(Err(format!("command '{}' not known", command_str)))

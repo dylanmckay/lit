@@ -17,7 +17,7 @@ pub fn indent_ext(text: &str, level: usize, indentation_atom: &str) -> String {
 }
 
 pub fn decorate_with_line_numbers(text: &str, starts_from_line_number: usize) -> String {
-    let max_line_num_digits = (text.lines().count() + 1).to_string().len();
+    let max_line_num_digits = (starts_from_line_number + text.lines().count()).to_string().len();
 
     text.lines().enumerate().map(|(relative_lineno, line)| {
         let line_number_str = (starts_from_line_number + relative_lineno).to_string();

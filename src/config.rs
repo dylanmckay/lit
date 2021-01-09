@@ -47,6 +47,8 @@ pub struct Config
     /// Whether messages on the standard error streams emitted during test runs
     /// should always be shown.
     pub always_show_stderr: bool,
+    /// Which shell to use (defaults to 'bash').
+    pub shell: String,
 }
 
 /// A function which can dynamically define newly used variables in a test.
@@ -151,6 +153,7 @@ impl Default for Config
             always_show_stderr: false,
             truncate_output_context_to_number_of_lines: Some(DEFAULT_MAX_OUTPUT_CONTEXT_LINE_COUNT),
             extra_executable_search_paths,
+            shell: "bash".to_string(),
         }
     }
 }

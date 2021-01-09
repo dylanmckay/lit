@@ -7,8 +7,6 @@ use crate::{parse, vars};
 
 use std;
 
-const SHELL: &'static str = "bash";
-
 pub struct TestEvaluator
 {
     pub invocation: Invocation,
@@ -40,7 +38,7 @@ impl TestEvaluator
             Err(e) => match e.kind() {
                 std::io::ErrorKind::NotFound => {
                     return TestResultKind::Error(
-                        format!("shell '{}' does not exist", SHELL).into(),
+                        format!("shell '{}' does not exist", &config.shell).into(),
                     );
                 },
                 _ => return TestResultKind::Error(e.into()),
@@ -73,7 +71,7 @@ impl TestEvaluator
 
         let command_line: String = vars::resolve::invocation(&self.invocation, &config, &mut variables);
 
-        let mut cmd = process::Command::new("bash");
+        let mut cmd = process::Command::new(&config.shell);
         cmd.args(&["-c", &command_line]);
 
         if let Ok(current_exe) = env::current_exe() {

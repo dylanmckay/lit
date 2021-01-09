@@ -10,8 +10,6 @@ use std::{collections::HashMap, env, fs, process};
 mod state;
 #[cfg(test)] mod state_tests;
 
-const DEFAULT_SHELL: &'static str = "bash";
-
 /// Responsible for evaluating specific tests and collecting
 /// the results.
 #[derive(Clone)]
@@ -32,7 +30,7 @@ pub fn execute_tests<'test>(test_file: &'test TestFile, config: &Config) -> Vec<
         let mut test_run_state = TestRunState::new(initial_variables);
         let (command, command_line) = self::build_command(invocation, test_file, config);
 
-        let (program_output, execution_result) = self::collect_output(command, command_line.clone());
+        let (program_output, execution_result) = self::collect_output(command, command_line.clone(), config);
 
         test_run_state.append_program_output(&program_output.stdout);
         test_run_state.append_program_stderr(&program_output.stderr);
@@ -97,6 +95,7 @@ fn run_test_checks(
 fn collect_output(
     mut command: process::Command,
     command_line: CommandLine,
+    config: &Config,
 ) -> (ProgramOutput, TestResultKind) {
     let mut test_result_kind = TestResultKind::Pass;
 
@@ -104,7 +103,7 @@ fn collect_output(
         Ok(o) => o,
         Err(e) => {
             let error_message = match e.kind() {
-                std::io::ErrorKind::NotFound => format!("shell '{}' does not exist", DEFAULT_SHELL).into(),
+                std::io::ErrorKind::NotFound => format!("shell '{}' does not exist", &config.shell).into(),
                 _ => e.to_string(),
             };
 
@@ -142,7 +141,7 @@ fn build_command(invocation: &Invocation,
 
     let command_line: String = vars::resolve::invocation(invocation, &config, &mut variables);
 
-    let mut cmd = process::Command::new(DEFAULT_SHELL);
+    let mut cmd = process::Command::new(&config.shell);
     cmd.args(&["-c", &command_line]);
 
     if !config.extra_executable_search_paths.is_empty() {

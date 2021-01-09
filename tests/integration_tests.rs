@@ -14,4 +14,14 @@ fn integration_tests() {
             config.add_extension(ext);
         }
     }).expect("unit test(s) failed");
+
+    // Now run the tests again but use a custom shell instead.
+    run::tests(lit::event_handler::Default::default(), |config| {
+        config.add_search_path(format!("{}/integration-tests", CRATE_PATH));
+        for ext in lit::INTEGRATION_TEST_FILE_EXTENSIONS {
+            config.add_extension(ext);
+        }
+
+        config.shell = "sh".to_string();
+    }).expect("unit test(s) failed");
 }

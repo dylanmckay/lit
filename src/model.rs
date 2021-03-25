@@ -53,6 +53,7 @@ pub struct TextPattern {
 /// A component in a text pattern.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PatternComponent {
+    Constant(String),
     Text(String),
     Variable(String),
     Regex(String),
@@ -198,6 +199,7 @@ impl fmt::Display for TextPattern {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         for component in self.components.iter() {
             match *component {
+                PatternComponent::Constant(ref constant) => write!(fmt, "@{}", constant)?,
                 PatternComponent::Text(ref text) => write!(fmt, "{}", text)?,
                 PatternComponent::Variable(ref name) => write!(fmt, "$${}", name)?,
                 PatternComponent::Regex(ref regex) => write!(fmt, "[[{}]]", regex)?,

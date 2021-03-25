@@ -123,8 +123,15 @@ pub fn text_pattern(s: &str) -> TextPattern {
                     Some(name) => components.push(PatternComponent::NamedRegex { name: name.to_owned(), regex: regex.to_owned() }),
                     None => components.push(PatternComponent::Regex(regex.to_owned())),
                 }
+            }
+            // Constants.
+            (Some('@'), _) => {
+                complete_text(&mut current_text, &mut components);
 
-            },
+                let name: String = chars.clone().take_while(|c| c.is_alphanumeric()).collect();
+                chars.nth(name.len() - 1); // Skip the constant name.
+                components.push(PatternComponent::Constant(name));
+            }
             (Some(c), _) => {
                 current_text.push(c);
             },
@@ -177,39 +184,37 @@ pub fn possible_command(string: &str, line: u32)
     }
 }
 
-#[cfg(tes)]
+#[cfg(test)]
 mod test {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn parses_single_text() {
-        assert_eq!(text_pattern("hello world"),
-                   "hello world");
+        assert_eq!(format!("{}", text_pattern("hello world")), "hello world");
     }
 
     #[test]
     fn correctly_escapes_text() {
-        assert_eq!(text_pattern("hello()").as_str(),
-                   "hello\\(\\)");
+        assert_eq!(format!("{}", text_pattern("hello\\(\\)")), "hello\\(\\)");
     }
 
     #[test]
     fn correctly_picks_up_single_regex() {
-        assert_eq!(text_pattern("[[\\d]]").as_str(),
-                   "\\d");
+        assert_eq!(format!("{}", text_pattern("[[\\d]]")), "[[\\d]]");
     }
 
     #[test]
     fn correctly_picks_up_regex_between_text() {
-        assert_eq!(text_pattern("1[[\\d]]3").as_str(),
-                   "1\\d3");
+        assert_eq!(format!("{}", text_pattern("1[[\\d]]3")), "1[[\\d]]3");
     }
 
     #[test]
     fn correctly_picks_up_named_regex() {
-        assert_eq!(text_pattern("[[num:\\d]]").as_str(),
-                   "(?P<num>\\d)");
+        assert_eq!(format!("{}", text_pattern("[[num:\\d]]")), "[[num:\\d]]");
+    }
+
+    #[test]
+    fn parses_constant() {
+        assert_eq!(format!("{}", text_pattern("@constant")), "@constant");
     }
 }
-

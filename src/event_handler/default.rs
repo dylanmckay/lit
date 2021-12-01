@@ -253,11 +253,12 @@ mod print {
                         color: term::color::Color)
         where S: Into<String> {
 
+
         match stream {
             StdStream::Out => {
-                if let Some(color_term) = term::stdout().as_mut() {
-                    color_term.fg(color).unwrap();
+                let stdout_term_color = term::stdout().and_then(|mut t| if let Ok(()) = t.fg(color) { Some(t) } else { None });
 
+                if let Some(mut color_term) = stdout_term_color {
                     if let Some(msg) = msg {
                         write!(color_term, "{}", msg.into()).unwrap();
                     }
@@ -268,9 +269,9 @@ mod print {
                 }
             },
             StdStream::Err => {
-                if let Some(color_term) = term::stderr().as_mut() {
-                    color_term.fg(color).unwrap();
+                let stderr_term_color = term::stderr().and_then(|mut t| if let Ok(()) = t.fg(color) { Some(t) } else { None });
 
+                if let Some(mut color_term) = stderr_term_color {
                     if let Some(msg) = msg {
                         write!(color_term, "{}", msg.into()).unwrap();
                     }

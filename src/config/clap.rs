@@ -149,7 +149,7 @@ pub fn parse_arguments(matches: &ArgMatches,
         for constant_define_str in constant_define_strs {
             let constant_definition: ConstantDefinition = match constant_define_str.parse() {
                 Ok(c) => c,
-                Err(e) => panic!(e),
+                Err(e) => panic!("could not parse constant definition: {}", e),
             };
 
             destination_config.constants.insert(constant_definition.name, constant_definition.value);

@@ -1,6 +1,6 @@
 [package]
 name = "lit"
-version = "1.0.3"
+version = "1.0.4"
 authors = ["Dylan McKay <me@dylanmckay.io>"]
 edition = "2018"
 

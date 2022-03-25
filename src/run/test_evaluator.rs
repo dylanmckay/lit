@@ -143,6 +143,7 @@ fn build_command(invocation: &Invocation,
 
     let mut cmd = process::Command::new(&config.shell);
     cmd.args(&["-c", &command_line]);
+    cmd.envs(&config.env_variables);
 
     if !config.extra_executable_search_paths.is_empty() {
         let os_path_separator = if cfg!(windows) { ";" } else { ":" };

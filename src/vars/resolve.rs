@@ -25,7 +25,7 @@ pub fn text_pattern(pattern: &TextPattern, config: &Config,
                     variables: &mut Variables) -> Regex {
     let regex_parts: Vec<_> = pattern.components.iter().map(|comp| match *comp {
         PatternComponent::Text(ref text) => regex::escape(text),
-        PatternComponent::Variable(ref name) => {
+        PatternComponent::Constant(ref name) | PatternComponent::Variable(ref name) => {
             // FIXME: proper error handling.
             let value = config.lookup_variable(name, variables);
 

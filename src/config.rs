@@ -49,6 +49,8 @@ pub struct Config
     pub always_show_stderr: bool,
     /// Which shell to use (defaults to 'bash').
     pub shell: String,
+    /// List of environment variables to be used on test invocation.
+    pub env_variables: HashMap<String, String>,
 }
 
 /// A function which can dynamically define newly used variables in a test.
@@ -154,6 +156,7 @@ impl Default for Config
             truncate_output_context_to_number_of_lines: Some(DEFAULT_MAX_OUTPUT_CONTEXT_LINE_COUNT),
             extra_executable_search_paths,
             shell: "bash".to_string(),
+            env_variables: HashMap::default(),
         }
     }
 }

@@ -4,7 +4,7 @@
 
 pub use self::default::EventHandler as Default;
 
-use crate::{Config, model::{TestResult}};
+pub use crate::{Config, model::{TestResult}};
 
 mod default;
 
